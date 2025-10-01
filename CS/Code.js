@@ -19,3 +19,13 @@ function onOpen() {
 function fMenuTagVerification() {
   FlexLib.run('TagVerification');
 } // End function fMenuTagVerification
+
+/* function fMenuToggleVisibility
+   Purpose: Local trigger for the "Show/Hide All" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuToggleVisibility() {
+  FlexLib.run('ToggleVisibility');
+} // End function fMenuToggleVisibility
