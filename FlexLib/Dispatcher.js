@@ -19,6 +19,7 @@ function run(command) {
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
       Test: fTestIdManagement,
+      GetLatestVersions: fGetLatestVersions,
     };
 
     if (commandMap[command]) {

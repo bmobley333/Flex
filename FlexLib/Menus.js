@@ -6,6 +6,20 @@
 // Start - Menu Creation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fCreateCodexMenu
+   Purpose: Creates the main custom menu for the Codex spreadsheet.
+   Assumptions: This is called from the onOpen trigger of the Codex sheet.
+   Notes: This will be the primary user-facing menu.
+   @returns {void}
+*/
+function fCreateCodexMenu() {
+  SpreadsheetApp.getUi()
+    .createMenu('*** Flex ***')
+    .addItem('Get Latest Flex Versions', 'fMenuGetLatestVersions')
+    .addToUi();
+} // End function fCreateCodexMenu
+
 /* function fCreateDesignerMenu
    Purpose: Creates the generic "Designer" custom menu.
    Assumptions: This is called from an onOpen trigger.
