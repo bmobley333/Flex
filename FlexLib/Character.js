@@ -9,7 +9,7 @@
 /* function fCreateCharacter
    Purpose: The master orchestrator for the entire character creation workflow.
    Assumptions: The Codex has a <Versions> sheet with a 'version' column tag.
-   Notes: This phase prompts the user to select a version.
+   Notes: This phase prompts the user, syncs files, and moves/renames the Codex.
    @returns {void}
 */
 function fCreateCharacter() {
@@ -23,7 +23,6 @@ function fCreateCharacter() {
   const endRow = rowTags.tableend;
   const versionCol = colTags.version;
 
-  // Use a Set to get only unique version numbers, converting them to Strings for reliable comparison.
   const availableVersions = [...new Set(arr.slice(startRow, endRow + 1).map(row => String(row[versionCol])))];
 
   if (availableVersions.length === 0) {
@@ -46,5 +45,18 @@ function fCreateCharacter() {
     return;
   }
 
-  fShowMessage('Character Creation', `✅ You selected Version ${selectedVersion}.`);
+  // 4. Ensure master files are synced for the selected version.
+  fShowMessage('Character Creation', `⏳ Syncing master files for Version ${selectedVersion}...`);
+  // First, ensure the ID cache is loaded by calling the getter. This is the critical first step.
+  fGetSheetId(selectedVersion, 'CS');
+  // Now, explicitly pass the loaded data to the sync function.
+  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
+  fSyncVersionFiles(selectedVersion, parentFolder, g.sheetIDs[selectedVersion]);
+
+  // 5. Move and rename this Codex file
+  const thisFile = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId());
+  fMoveFileToFolder(thisFile, parentFolder);
+  thisFile.setName("Player's Codex");
+
+  fShowMessage('Character Creation', `✅ File sync for Version ${selectedVersion} complete.`);
 } // End function fCreateCharacter
