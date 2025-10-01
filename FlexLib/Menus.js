@@ -6,15 +6,15 @@
 // Start - Menu Creation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* function fVerCreateMenu
-   Purpose: Creates the custom menu for the Ver (Version Tracker) sheet.
-   Assumptions: This is called from the onOpen trigger of the Ver sheet.
-   Notes: All menu logic for the Ver sheet will be managed here.
+/* function fCreateDesignerMenu
+   Purpose: Creates the generic "Designer" custom menu.
+   Assumptions: This is called from an onOpen trigger.
+   Notes: This can be used by any sheet to create a consistent designer menu.
    @returns {void}
 */
-function fVerCreateMenu() {
+function fCreateDesignerMenu() {
   SpreadsheetApp.getUi()
     .createMenu('Designer')
-    .addItem('Tag Verification', 'fVerMenuTagVerification')
+    .addItem('Tag Verification', 'fMenuTagVerification')
     .addToUi();
-} // End function fVerCreateMenu
+} // End function fCreateDesignerMenu

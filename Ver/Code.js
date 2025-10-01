@@ -12,15 +12,15 @@
    @returns {void}
 */
 function onOpen() {
-  FlexLib.fVerCreateMenu();
+  FlexLib.fCreateDesignerMenu();
 } // End function onOpen
 
-/* function fVerMenuTagVerification
+/* function fMenuTagVerification
    Purpose: The local trigger function called by the "Tag Verification" menu item.
    Assumptions: None.
-   Notes: This function acts as a simple pass-through to the central dispatcher in FlexLib.
+   Notes: This function acts as a simple pass-through to the central dispatcher in FlexLib. The name is generic for reuse.
    @returns {void}
 */
-function fVerMenuTagVerification() {
-  FlexLib.run('Ver_TagVerification');
-} // End function fVerMenuTagVerification
+function fMenuTagVerification() {
+  FlexLib.run('TagVerification');
+} // End function fMenuTagVerification
