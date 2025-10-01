@@ -8,8 +8,8 @@
 
 /* function fGetLatestVersions
    Purpose: Fetches the latest version data from the master Ver sheet and updates the local Codex.
-   Assumptions: The master Ver ID is correctly set in g. MASTER_VER_ID.
-   Notes: This performs a full overwrite of the local version data.
+   Assumptions: The master Ver ID is correctly set in g.MASTER_VER_ID.
+   Notes: This performs a full overwrite of the local version data and rebuilds the cache.
    @returns {void}
 */
 function fGetLatestVersions() {
@@ -57,9 +57,13 @@ function fGetLatestVersions() {
     pasteRange.setValues(dataToPaste);
   }
 
-  // 5. Finalize
+  // 5. Finalize by clearing the old cache and immediately rebuilding it.
   PropertiesService.getScriptProperties().deleteProperty('sheetIDs');
-  fShowMessage('✅ Success', 'The latest version data has been successfully loaded into your Codex.');
+  g.sheetIDs = {}; // Clear in-memory cache
+  fLoadSheetIDsFromCodex(); // Re-load from the sheet we just updated
+  fCacheSheetIDsToStorage(); // Save the fresh data to persistent storage
+
+  fShowMessage('✅ Success', 'The latest version data has been successfully loaded and cached.');
 } // End function fGetLatestVersions
 
 /* function fNormalizeTags
