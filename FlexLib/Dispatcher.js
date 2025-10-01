@@ -20,6 +20,7 @@ function run(command) {
       ToggleVisibility: fToggleDesignerVisibility,
       Test: fTestIdManagement,
       GetLatestVersions: fGetLatestVersions,
+      CreateCharacter: fCreateCharacter,
     };
 
     if (commandMap[command]) {

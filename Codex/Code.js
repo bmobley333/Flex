@@ -42,6 +42,18 @@ function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
 
+
+/* function fMenuCreateCharacter
+   Purpose: Local trigger for the "Create New Character" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuCreateCharacter() {
+  FlexLib.run('CreateCharacter');
+} // End function fMenuCreateCharacter
+
+
 /* function fMenuGetLatestVersions
    Purpose: Local trigger for the "Get Latest Flex Versions" menu item.
    Assumptions: None.
