@@ -16,7 +16,8 @@ function fCreateDesignerMenu() {
   SpreadsheetApp.getUi()
     .createMenu('Designer')
     .addItem('Tag Verification', 'fMenuTagVerification')
-    .addSeparator()
     .addItem('Show/Hide All', 'fMenuToggleVisibility')
+    .addSeparator()
+    .addItem('Test', 'fMenuTest')
     .addToUi();
 } // End function fCreateDesignerMenu

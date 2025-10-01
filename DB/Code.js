@@ -29,3 +29,13 @@ function fMenuTagVerification() {
 function fMenuToggleVisibility() {
   FlexLib.run('ToggleVisibility');
 } // End function fMenuToggleVisibility
+
+/* function fMenuTest
+   Purpose: Local trigger for the "Test" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuTest() {
+  FlexLib.run('Test');
+} // End function fMenuTest

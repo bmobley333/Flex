@@ -8,9 +8,12 @@
 
 const g = {
   // Developer Info
-  ADMIN_EMAIL: 'metascapegame@gmail.com',
-  CURRENT_VERSION: '3',
+  ADMIN_EMAIL: 'your-email@example.com',
+  CURRENT_VERSION: '0.1-alpha',
 
-  // This structure will be populated by fLoadSheetToArray
+  // Object structures to be populated by utility functions
   Ver: {},
+  Codex: {},
+  CS: {},
+  DB: {},
 }; // End const g
