@@ -6,32 +6,26 @@
 // Start - Testing Utilities
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* function fTestTagMaps
-   Purpose: A test function to verify that fBuildTagMaps is working correctly.
-   Assumptions: The 'Codex' spreadsheet has a sheet named 'Versions' with tags.
-   Notes: Displays the first and last found tags for rows and columns.
+/* function fTestIdManagement
+   Purpose: A test function to verify that the ID caching system is working.
+   Assumptions: The 'Codex' spreadsheet has a 'Versions' sheet with data for a 'DB' entry.
+   Notes: Displays all cached info for the 'DB' sheet abbreviation.
    @returns {void}
 */
-function fTestTagMaps() {
-  fBuildTagMaps('Codex', 'Versions');
+function fTestIdManagement() {
+  fGetSheetId(g.CURRENT_VERSION, 'DB'); // This triggers the caching logic
 
-  const { rowTags, colTags } = g.Codex.Versions;
+  const dbInfo = g.sheetIDs[g.CURRENT_VERSION]['DB'];
 
-  const rowKeys = Object.keys(rowTags);
-  const colKeys = Object.keys(colTags);
-
-  let message = 'ℹ️ Tag mapping successful!\n\n';
-  message += `Row Tags Found: ${rowKeys.length}\n`;
-  if (rowKeys.length > 0) {
-    message += `First: "${rowKeys[0]}" -> index ${rowTags[rowKeys[0]]}\n`;
-    message += `Last: "${rowKeys[rowKeys.length - 1]}" -> index ${rowTags[rowKeys[rowKeys.length - 1]]}\n`;
+  if (!dbInfo) {
+    throw new Error("Could not retrieve info for ssAbbr 'DB'. Check the 'Versions' sheet.");
   }
 
-  message += `\nCol Tags Found: ${colKeys.length}\n`;
-  if (colKeys.length > 0) {
-    message += `First: "${colKeys[0]}" -> index ${colTags[colKeys[0]]}\n`;
-    message += `Last: "${colKeys[colKeys.length - 1]}" -> index ${colTags[colKeys[colKeys.length - 1]]}\n`;
-  }
+  let message = '✅ ID Cache Loaded Successfully!\n\n';
+  message += `Version: ${dbInfo.version}\n`;
+  message += `Full Name: ${dbInfo.ssfullname}\n`;
+  message += `Abbreviation: ${dbInfo.ssabbr}\n`;
+  message += `ID: ${dbInfo.ssid}`;
 
   fShowMessage('Test Results', message);
-} // End function fTestTagMaps
+} // End function fTestIdManagement

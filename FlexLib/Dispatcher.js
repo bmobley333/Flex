@@ -18,7 +18,7 @@ function run(command) {
     const commandMap = {
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
-      Test: fTestTagMaps,
+      Test: fTestIdManagement,
     };
 
     if (commandMap[command]) {

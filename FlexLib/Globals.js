@@ -8,10 +8,13 @@
 
 const g = {
   // Developer Info
-  ADMIN_EMAIL: 'your-email@example.com',
-  CURRENT_VERSION: '0.1-alpha',
+  ADMIN_EMAIL: 'metascapegame@gmail.com',
+  CURRENT_VERSION: '3',
 
-  // Object structures to be populated by utility functions
+  // Object to cache the mapping of Version -> Abbr -> full data object
+  sheetIDs: {},
+
+  // Object structures for sheet data (arrays and tag maps)
   Ver: {},
   Codex: {},
   CS: {},
