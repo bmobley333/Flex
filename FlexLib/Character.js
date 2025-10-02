@@ -8,19 +8,18 @@
 
 /* function fCreateNewCharacterSheet
    Purpose: Creates and names a new character sheet from the local master and logs it in the Codex.
-   Assumptions: The required master files for the selected version have already been synced.
+   Assumptions: The required master files for the selected version have already been synced and logged in <MyVersions>.
    Notes: This is the final step in the character creation workflow.
    @param {string} version - The game version for the new character (e.g., '3').
    @param {GoogleAppsScript.Drive.Folder} parentFolder - The "MetaScape Flex" folder object.
    @returns {void}
 */
 function fCreateNewCharacterSheet(version, parentFolder) {
-  // 1. Get the local CS template ID from PropertiesService
-  const properties = PropertiesService.getScriptProperties();
-  const localCache = JSON.parse(properties.getProperty('localFileCache') || '{}');
-  const localCsId = localCache[version] ? localCache[version]['CS'] : null;
+  // 1. Get the local CS template ID using the new ID Management system
+  const localCsId = fGetSheetId(version, 'CS');
 
   if (!localCsId) {
+    // This is a fallback error; fGetSheetId should throw its own specific error first.
     fShowMessage('❌ Error', `Could not find the local master Character Sheet for Version ${version}. Please try syncing versions again.`);
     return;
   }
@@ -57,15 +56,12 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   let targetRow;
 
   // Prepare the character data first, as it's needed in both cases.
-  // Note: This data array does NOT include the tag column.
-  const rulesId = g.sheetIDs[version]['Rules'].ssid;
-  const rulesUrl = `https://docs.google.com/spreadsheets/d/${rulesId}/`;
   const dataToWrite = [];
   dataToWrite[colTags.csid - 1] = newCharSheet.getId();
   dataToWrite[colTags.version - 1] = version;
   dataToWrite[colTags.checkbox - 1] = true;
-  dataToWrite[colTags.charname - 1] = characterName;
-  dataToWrite[colTags.rules - 1] = rulesUrl;
+  dataToWrite[colTags.charname - 1] = characterName; // Placeholder for rich text
+  dataToWrite[colTags.rules - 1] = 'Rules'; // Placeholder for rich text
 
 
   // Case 1: First character, table is empty.
@@ -106,6 +102,13 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const link = SpreadsheetApp.newRichTextValue().setText(characterName).setLinkUrl(newCharSheet.getUrl()).build();
   destSheet.getRange(targetRow, colTags.charname + 1).setRichTextValue(link);
 
+  // Set the rich text link for the Rules document
+  const rulesId = fGetSheetId(version, 'Rules');
+  const rulesUrl = `https://docs.google.com/document/d/${rulesId}/`;
+  const rulesLink = SpreadsheetApp.newRichTextValue().setText('Rules').setLinkUrl(rulesUrl).build();
+  destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
+
+
   // 5. Final, corrected success message
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
   fShowMessage('Character Created!', successMessage);
@@ -114,33 +117,59 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 
 /* function fCreateCharacter
    Purpose: The master orchestrator for the entire character creation workflow.
-   Assumptions: The Codex has a <Versions> sheet with a 'version' column tag.
-   Notes: This phase prompts the user, syncs files, and creates the new character sheet.
+   Assumptions: The Codex has a <MyVersions> sheet.
+   Notes: Intelligently triggers a one-time setup if needed, otherwise proceeds to character creation.
    @returns {void}
 */
 function fCreateCharacter() {
-  // 1. Load available versions
   const ssKey = 'Codex';
-  const sheetName = 'Versions';
+  const sheetName = 'MyVersions';
+
+  // 1. Check if the one-time setup is needed.
+  fLoadSheetToArray(ssKey, sheetName);
   fBuildTagMaps(ssKey, sheetName);
 
-  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+  let { arr, rowTags, colTags } = g[ssKey][sheetName];
   const startRow = rowTags.tablestart;
   const endRow = rowTags.tableend;
-  const versionCol = colTags.version;
+  const ssAbbrCol = colTags.ssabbr;
 
-  const availableVersions = [...new Set(arr.slice(startRow, endRow + 1).map(row => String(row[versionCol])))];
+  // Condition for an empty table (first-time use)
+  if (startRow === endRow && (!arr[startRow] || arr[startRow][ssAbbrCol] === '')) {
+    fInitialSetup();
+    // After setup, we MUST reload the sheet data to get the new information
+    fLoadSheetToArray(ssKey, sheetName);
+    fBuildTagMaps(ssKey, sheetName);
+    // Re-assign our local variables with the new data
+    let reloadedData = g[ssKey][sheetName];
+    arr = reloadedData.arr;
+    rowTags = reloadedData.rowTags;
+    colTags = reloadedData.colTags;
+  }
+
+  // 2. Load available versions from the now-populated <MyVersions> sheet.
+  const versionCol = colTags.version;
+  const versionsStartRow = rowTags.tablestart;
+  const versionsEndRow = rowTags.tableend;
+
+  // Create a unique list of versions that have a 'CS' file available.
+  const availableVersions = [...new Set(
+    arr.slice(versionsStartRow, versionsEndRow + 1)
+       .filter(row => row[colTags.ssabbr] === 'CS')
+       .map(row => String(row[versionCol]))
+  )];
+
 
   if (availableVersions.length === 0) {
-    fShowMessage('❌ Error', 'No game versions were found in the <Versions> sheet.');
+    fShowMessage('❌ Error', 'No game versions with a Character Sheet (CS) were found in your <MyVersions> sheet.');
     return;
   }
 
-  // 2. Prompt user for selection
-  const promptMessage = `Please enter the game version you would like to use.\n\nAvailable versions:\n${availableVersions.join(', ')}`;
+  // 3. Prompt user for selection
+  const promptMessage = `Please enter the game version you would like to use for your new character.\n\nAvailable versions:\n${availableVersions.join(', ')}`;
   const selectedVersion = fPromptWithInput('Select Game Version', promptMessage);
 
-  // 3. Handle response
+  // 4. Handle response
   if (selectedVersion === null) {
     fShowMessage('ℹ️ Canceled', 'Character creation has been canceled.');
     return;
@@ -151,15 +180,8 @@ function fCreateCharacter() {
     return;
   }
 
-  // 4. Ensure master files are synced for the selected version.
-  fShowMessage('Character Creation', `⏳ Syncing master files for Version ${selectedVersion}...`);
-  // First, ensure the ID cache is loaded by calling the getter. This is the critical first step.
-  fGetSheetId(selectedVersion, 'CS');
-  // Now, explicitly pass the loaded data to the sync function.
-  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
-  fSyncVersionFiles(selectedVersion, parentFolder, g.sheetIDs[selectedVersion]);
-  fShowMessage('Character Creation', `✅ File sync for Version ${selectedVersion} complete.`);
-
   // 5. Create the new character sheet and log it.
+  const parentFolder = fGetOrCreateFolder('MetaScape Flex'); // We still need the folder reference
   fCreateNewCharacterSheet(selectedVersion, parentFolder);
+
 } // End function fCreateCharacter

@@ -62,14 +62,3 @@ function fMenuTest() {
 function fMenuCreateCharacter() {
   FlexLib.run('CreateCharacter');
 } // End function fMenuCreateCharacter
-
-
-/* function fMenuGetLatestVersions
-   Purpose: Local trigger for the "Get Latest Flex Versions" menu item.
-   Assumptions: None.
-   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
-   @returns {void}
-*/
-function fMenuGetLatestVersions() {
-  FlexLib.run('GetLatestVersions');
-} // End function fMenuGetLatestVersions

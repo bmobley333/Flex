@@ -1,5 +1,5 @@
 /* global g, PropertiesService, SpreadsheetApp, fBuildTagMaps, fLoadSheetToArray */
-/* exported fGetSheetId, fLoadSheetIDsFromCodex */
+/* exported fGetSheetId, fLoadSheetIDsFromMyVersions */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* function fGetSheetId
-   Purpose: Gets a specific spreadsheet ID, using a cache-first approach for performance.
-   Assumptions: The Codex sheet is set up with a 'Versions' sheet.
-   Notes: This is the primary function for retrieving any versioned sheet ID.
+   Purpose: Gets a specific spreadsheet ID from the player's local collection, using a cache-first approach.
+   Assumptions: The Codex has a <MyVersions> sheet that has been populated.
+   Notes: This is the primary function for retrieving any local versioned sheet ID.
    @param {string} version - The version number of the sheet ID to retrieve (e.g., '3').
    @param {string} ssAbbr - The abbreviated name of the sheet (e.g., 'CS').
    @returns {string} The spreadsheet ID.
@@ -20,28 +20,35 @@ function fGetSheetId(version, ssAbbr) {
     fLoadSheetIDsFromStorage();
   }
 
-  // 2. If the cache is still empty, load from the Codex sheet as a last resort.
+  // 2. If the cache is still empty, load from the <MyVersions> sheet as a last resort.
   if (Object.keys(g.sheetIDs).length === 0) {
-    fLoadSheetIDsFromCodex();
+    fLoadSheetIDsFromMyVersions();
     fCacheSheetIDsToStorage();
   }
 
   if (g.sheetIDs[version] && g.sheetIDs[version][ssAbbr]) {
     return g.sheetIDs[version][ssAbbr].ssid;
   } else {
-    throw new Error(`Could not find Sheet ID for version "${version}", abbreviation "${ssAbbr}".`);
+    // If not found, force a reload from the sheet and try one more time.
+    fLoadSheetIDsFromMyVersions();
+    fCacheSheetIDsToStorage();
+    if (g.sheetIDs[version] && g.sheetIDs[version][ssAbbr]) {
+      return g.sheetIDs[version][ssAbbr].ssid;
+    } else {
+      throw new Error(`Could not find a local Sheet ID for version "${version}", abbreviation "${ssAbbr}".`);
+    }
   }
 } // End function fGetSheetId
 
-/* function fLoadSheetIDsFromCodex
-   Purpose: Reads the Codex's internal "Versions" sheet to build the initial sheet ID cache.
-   Assumptions: The 'Versions' sheet is tagged with 'tablestart', 'tableend', 'version', 'ssabbr', and 'ssid'.
-   Notes: This should only ever run once per user.
+/* function fLoadSheetIDsFromMyVersions
+   Purpose: Reads the Codex's <MyVersions> sheet to build the cache of local file IDs.
+   Assumptions: The <MyVersions> sheet is tagged with 'tablestart', 'tableend', 'version', 'ssabbr', and 'ssid'.
+   Notes: This powers the cache with the player's own file data.
    @returns {void}
 */
-function fLoadSheetIDsFromCodex() {
+function fLoadSheetIDsFromMyVersions() {
   const ssKey = 'Codex';
-  const sheetName = 'Versions';
+  const sheetName = 'MyVersions';
 
   fBuildTagMaps(ssKey, sheetName);
 
@@ -53,8 +60,11 @@ function fLoadSheetIDsFromCodex() {
     throw new Error(`Could not find 'tablestart' or 'tableend' row tags in the "${sheetName}" sheet.`);
   }
 
+  // Clear the in-memory cache before reloading
+  g.sheetIDs = {};
+
   for (let r = startRow; r <= endRow; r++) {
-    const version = String(arr[r][colTags.version]); // This line is changed
+    const version = String(arr[r][colTags.version]);
     const abbr = arr[r][colTags.ssabbr];
     const id = arr[r][colTags.ssid];
     const fullName = arr[r][colTags.ssfullname];
@@ -72,7 +82,7 @@ function fLoadSheetIDsFromCodex() {
       ssfullname: fullName,
     };
   }
-} // End function fLoadSheetIDsFromCodex
+} // End function fLoadSheetIDsFromMyVersions
 
 /* function fLoadSheetIDsFromStorage
    Purpose: Loads the sheet ID cache from persistent PropertiesService into the global g object.

@@ -16,8 +16,6 @@
 function fCreateCodexMenu() {
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
-    .addItem('Get Latest Flex Versions', 'fMenuGetLatestVersions')
-    .addSeparator()
     .addItem('Create New Character', 'fMenuCreateCharacter')
     .addToUi();
 } // End function fCreateCodexMenu
