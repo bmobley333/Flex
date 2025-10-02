@@ -47,7 +47,7 @@ function fInitialSetup() {
 
 
 /* function fSyncAllVersionFiles
-   Purpose: Reads master version data, copies all required files, and logs them to the player's <MyVersions> sheet.
+   Purpose: Reads master version data, copies only files marked as PlayerNeeds, and logs them.
    Assumptions: The sourceData is a 2D array from the master Ver sheet.
    Notes: This is the core file synchronization engine for the initial setup.
    @param {Array<Array<string>>} sourceData - The full data from the master "Ver" sheet.
@@ -67,7 +67,7 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
   // 2. Define the columns we need to extract from the source sheet
   const versionCol = sourceColTags.version;
   const releaseDateCol = sourceColTags.releasedate;
-  const isMasterCol = sourceColTags.ismaster;
+  const playerNeedsCol = sourceColTags.playerneeds; // Updated from ismaster
   const fullNameCol = sourceColTags.ssfullname;
   const abbrCol = sourceColTags.ssabbr;
   const idCol = sourceColTags.ssid;
@@ -75,10 +75,17 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
   // 3. Loop through each row of the source data table and process it
   for (let r = startRow; r <= endRow; r++) {
     const rowData = sourceData[r];
+
+    // --- NEW LOGIC ---
+    // Only copy the file if the 'PlayerNeeds' column is TRUE
+    if (rowData[playerNeedsCol] !== true) {
+      continue; // Skip this file
+    }
+
     const masterId = rowData[idCol];
     const ssAbbr = rowData[abbrCol];
     const version = rowData[versionCol];
-    if (!masterId || !ssAbbr) continue; // Skip rows without an ID or abbreviation
+    if (!masterId || !ssAbbr) continue;
 
     fShowToast(`⏳ Copying ${ssAbbr} (Version ${version})...`, '⚙️ Setup');
 
@@ -90,7 +97,6 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
     const logData = {
       version: version,
       releaseDate: rowData[releaseDateCol],
-      isMaster: rowData[isMasterCol],
       ssFullName: rowData[fullNameCol],
       ssAbbr: ssAbbr,
       ssID: newFile.getId(), // Log the NEW file's ID
@@ -131,7 +137,7 @@ function fLogLocalFileCopy(logData) {
   const dataToWrite = [];
   dataToWrite[colTags.version - 1] = logData.version;
   dataToWrite[colTags.releasedate - 1] = logData.releaseDate;
-  dataToWrite[colTags.ismaster - 1] = logData.isMaster;
+  // 'ismaster' column is removed
   dataToWrite[colTags.ssfullname - 1] = logData.ssFullName;
   dataToWrite[colTags.ssabbr - 1] = logData.ssAbbr;
   dataToWrite[colTags.ssid - 1] = logData.ssID;
@@ -158,10 +164,5 @@ function fLogLocalFileCopy(logData) {
     // Write the data starting from the second column
     const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
     targetRange.setValues([dataToWrite]);
-  }
-
-  // Set the checkbox data validation for the 'IsMaster' column
-  if (colTags.ismaster !== undefined) {
-    destSheet.getRange(targetRow, colTags.ismaster + 1).insertCheckboxes();
   }
 } // End function fLogLocalFileCopy
