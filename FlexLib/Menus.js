@@ -27,6 +27,31 @@ function fCreateCodexMenu() {
     .addToUi();
 } // End function fCreateCodexMenu
 
+/* function fCreateFlexMenu
+   Purpose: Creates the main custom menu for Flex spreadsheets.
+   Assumptions: This is called from an onOpen trigger.
+   Notes: This will be the primary user-facing menu. Includes a placeholder item to prevent errors.
+   @returns {void}
+*/
+function fCreateFlexMenu() {
+  SpreadsheetApp.getUi()
+    .createMenu('*** Flex ***')
+    .addItem('More Actions Coming Soon...', 'fMenuPlaceholder')
+    .addToUi();
+} // End function fCreateFlexMenu
+
+
+/* function fCreateStandardMenus
+   Purpose: Creates the standard set of menus for non-Codex sheets.
+   Assumptions: This is called from an onOpen trigger.
+   Notes: A wrapper function to ensure both the Flex and Designer menus are created.
+   @returns {void}
+*/
+function fCreateStandardMenus() {
+  fCreateFlexMenu();
+  fCreateDesignerMenu();
+} // End function fCreateStandardMenus
+
 /* function fCreateDesignerMenu
    Purpose: Creates the generic "Designer" custom menu.
    Assumptions: This is called from an onOpen trigger.

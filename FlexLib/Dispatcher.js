@@ -24,6 +24,7 @@ function run(command) {
       RenameCharacter: fRenameCharacter,
       DeleteCharacter: fDeleteCharacter,
       ClearProperties: fClearAllScriptProperties,
+      ShowPlaceholder: fShowPlaceholderMessage,
     };
 
     if (commandMap[command]) {
