@@ -14,9 +14,14 @@
    @returns {void}
 */
 function fCreateCodexMenu() {
+  const createMenu = SpreadsheetApp.getUi().createMenu('Create New Character')
+    .addItem('Latest Version', 'fMenuCreateLatestCharacter')
+    .addItem('Older Legacy Version', 'fMenuCreateLegacyCharacter');
+
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
-    .addItem('Create New Character', 'fMenuCreateCharacter')
+    .addSubMenu(createMenu)
+    .addSeparator()
     .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
     .addToUi();
 } // End function fCreateCodexMenu

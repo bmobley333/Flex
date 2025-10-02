@@ -104,15 +104,15 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const localCsId = fGetSheetId(version, 'CS');
 
   if (!localCsId) {
-    // This is a fallback error; fGetSheetId should throw its own specific error first.
     fShowMessage('❌ Error', `Could not find the local master Character Sheet for Version ${version}. Please try syncing versions again.`);
     return;
   }
 
-  // 2. Copy the template and prompt for a name
-  fShowMessage('New Character', '⏳ Creating a new character sheet...');
+  // 2. Get the destination folder and copy the template
+  fShowToast('Creating a new character sheet...', 'New Character');
+  const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
   const csTemplateFile = DriveApp.getFileById(localCsId);
-  const newCharSheet = csTemplateFile.makeCopy(parentFolder);
+  const newCharSheet = csTemplateFile.makeCopy(charactersFolder);
 
   const characterName = fPromptWithInput('Name Your Character', 'Please enter a name for your new character:');
 
@@ -122,7 +122,8 @@ function fCreateNewCharacterSheet(version, parentFolder) {
     return;
   }
 
-  newCharSheet.setName(characterName);
+  const versionedCharacterName = `v${version} ${characterName}`;
+  newCharSheet.setName(versionedCharacterName);
 
   // 3. Log the new character in the Codex's <Characters> sheet
   const ssKey = 'Codex';
@@ -145,14 +146,12 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   dataToWrite[colTags.csid - 1] = newCharSheet.getId();
   dataToWrite[colTags.version - 1] = version;
   dataToWrite[colTags.checkbox - 1] = true;
-  dataToWrite[colTags.charname - 1] = characterName; // Placeholder for rich text
-  dataToWrite[colTags.rules - 1] = 'Rules'; // Placeholder for rich text
-
+  dataToWrite[colTags.charname - 1] = versionedCharacterName; // Use versioned name
+  dataToWrite[colTags.rules - 1] = `v${version} Rules`;     // Use versioned rules text
 
   // Case 1: First character, table is empty.
   if (startRow === endRow && (!arr[startRow] || arr[startRow][charNameCol] === '')) {
     targetRow = startRow + 1;
-    // Data is written starting from the second column.
     const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
     targetRange.setValues([dataToWrite]);
   } else {
@@ -160,39 +159,32 @@ function fCreateNewCharacterSheet(version, parentFolder) {
     targetRow = endRow + 2;
     destSheet.insertRowsAfter(endRow + 1, 1);
 
-    // Move the 'TableEnd' tag
     const oldTagCell = destSheet.getRange(endRow + 1, 1);
     const oldTags = oldTagCell.getValue().toString().split(',').map(t => t.trim());
     const newTags = oldTags.filter(t => t.toLowerCase() !== 'tableend');
     oldTagCell.setValue(newTags.join(', '));
-    destSheet.getRange(targetRow, 1).setValue('TableEnd'); // Set the tag in the new row
+    destSheet.getRange(targetRow, 1).setValue('TableEnd');
 
-    // Clear previous checkboxes
     if (colTags.checkbox !== undefined) {
       const checkboxCol = colTags.checkbox + 1;
       const numRows = endRow - startRow + 1;
       destSheet.getRange(startRow + 1, checkboxCol, numRows, 1).uncheck();
     }
-    // Write the data starting from the second column, preserving the new tag
     const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
     targetRange.setValues([dataToWrite]);
   }
 
   // 4. Format the new row appropriately
-  // Set the checkbox data validation
   if (colTags.checkbox !== undefined) {
     destSheet.getRange(targetRow, colTags.checkbox + 1).insertCheckboxes();
   }
-  // Set the rich text link for the character name
-  const link = SpreadsheetApp.newRichTextValue().setText(characterName).setLinkUrl(newCharSheet.getUrl()).build();
+  const link = SpreadsheetApp.newRichTextValue().setText(versionedCharacterName).setLinkUrl(newCharSheet.getUrl()).build();
   destSheet.getRange(targetRow, colTags.charname + 1).setRichTextValue(link);
 
-  // Set the rich text link for the Rules document
   const rulesId = fGetSheetId(version, 'Rules');
   const rulesUrl = `https://docs.google.com/document/d/${rulesId}/`;
-  const rulesLink = SpreadsheetApp.newRichTextValue().setText('Rules').setLinkUrl(rulesUrl).build();
+  const rulesLink = SpreadsheetApp.newRichTextValue().setText(`v${version} Rules`).setLinkUrl(rulesUrl).build();
   destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
-
 
   // 5. Final, corrected success message
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
@@ -200,73 +192,123 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 } // End function fCreateNewCharacterSheet
 
 
-/* function fCreateCharacter
-   Purpose: The master orchestrator for the entire character creation workflow.
-   Assumptions: The Codex has a <MyVersions> sheet.
-   Notes: Intelligently triggers a one-time setup if needed, otherwise proceeds to character creation.
+/* function fCreateLatestCharacter
+   Purpose: Controller for creating a character using the latest available version without a prompt.
+   Assumptions: None.
+   Notes: Determines the latest version and calls the core character creation function. Triggers initial setup if needed.
    @returns {void}
 */
-function fCreateCharacter() {
+function fCreateLatestCharacter() {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
 
-  // 1. Check if the one-time setup is needed.
+  // 1. Check if the one-time setup is needed. This must be the first step.
   fLoadSheetToArray(ssKey, sheetName);
   fBuildTagMaps(ssKey, sheetName);
-
   let { arr, rowTags, colTags } = g[ssKey][sheetName];
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
-  const ssAbbrCol = colTags.ssabbr;
-
-  // Condition for an empty table (first-time use)
-  if (startRow === endRow && (!arr[startRow] || arr[startRow][ssAbbrCol] === '')) {
+  if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
     fInitialSetup();
     // After setup, we MUST reload the sheet data to get the new information
     fLoadSheetToArray(ssKey, sheetName);
     fBuildTagMaps(ssKey, sheetName);
-    // Re-assign our local variables with the new data
     let reloadedData = g[ssKey][sheetName];
     arr = reloadedData.arr;
     rowTags = reloadedData.rowTags;
     colTags = reloadedData.colTags;
   }
 
-  // 2. Load available versions from the now-populated <MyVersions> sheet.
-  const versionCol = colTags.version;
-  const versionsStartRow = rowTags.tablestart;
-  const versionsEndRow = rowTags.tableend;
+  // 2. Find the highest version number that has a CS file
+  const versionsWithCS = arr.slice(rowTags.tablestart, rowTags.tableend + 1)
+    .filter(row => row[colTags.ssabbr] === 'CS')
+    .map(row => parseFloat(row[colTags.version]));
 
-  // Create a unique list of versions that have a 'CS' file available.
-  const availableVersions = [...new Set(
-    arr.slice(versionsStartRow, versionsEndRow + 1)
-       .filter(row => row[colTags.ssabbr] === 'CS')
-       .map(row => String(row[versionCol]))
-  )];
-
-
-  if (availableVersions.length === 0) {
-    fShowMessage('❌ Error', 'No game versions with a Character Sheet (CS) were found in your <MyVersions> sheet.');
+  if (versionsWithCS.length === 0) {
+    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.');
     return;
   }
 
-  // 3. Prompt user for selection
-  const promptMessage = `Please enter the game version you would like to use for your new character.\n\nAvailable versions:\n${availableVersions.join(', ')}`;
-  const selectedVersion = fPromptWithInput('Select Game Version', promptMessage);
+  const latestVersion = Math.max(...versionsWithCS).toString();
+  fCreateCharacterFromVersion(latestVersion);
+} // End function fCreateLatestCharacter
 
-  // 4. Handle response
+
+/* function fCreateLegacyCharacter
+   Purpose: Controller for creating a character from a list of older, non-latest versions.
+   Assumptions: None.
+   Notes: Prompts the user to select from a list of available legacy versions. Triggers initial setup if needed.
+   @returns {void}
+*/
+function fCreateLegacyCharacter() {
+  const ssKey = 'Codex';
+  const sheetName = 'MyVersions';
+
+  // 1. Check if the one-time setup is needed. This must be the first step.
+  fLoadSheetToArray(ssKey, sheetName);
+  fBuildTagMaps(ssKey, sheetName);
+  let { arr, rowTags, colTags } = g[ssKey][sheetName];
+  if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
+    fInitialSetup();
+    // After setup, we MUST reload the sheet data to get the new information
+    fLoadSheetToArray(ssKey, sheetName);
+    fBuildTagMaps(ssKey, sheetName);
+    let reloadedData = g[ssKey][sheetName];
+    arr = reloadedData.arr;
+    rowTags = reloadedData.rowTags;
+    colTags = reloadedData.colTags;
+  }
+
+  // 2. Find and prompt for legacy versions
+  const versionsWithCS = arr.slice(rowTags.tablestart, rowTags.tableend + 1)
+    .filter(row => row[colTags.ssabbr] === 'CS')
+    .map(row => parseFloat(row[colTags.version]));
+
+  if (versionsWithCS.length === 0) {
+    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.');
+    return;
+  }
+
+  const latestVersion = Math.max(...versionsWithCS);
+  const legacyVersions = [...new Set(versionsWithCS.filter(v => v < latestVersion).map(String))];
+
+  if (legacyVersions.length === 0) {
+    fShowMessage('ℹ️ No Legacy Versions', 'No older legacy versions are available to choose from.');
+    return;
+  }
+
+  const promptMessage = `Please enter the legacy game version you would like to use.\n\nAvailable versions:\n${legacyVersions.join(', ')}`;
+  const selectedVersion = fPromptWithInput('Select Legacy Version', promptMessage);
+
   if (selectedVersion === null) {
     fShowMessage('ℹ️ Canceled', 'Character creation has been canceled.');
     return;
   }
 
-  if (!availableVersions.includes(selectedVersion)) {
-    fShowMessage('❌ Error', `Invalid version selected. Please enter one of the available versions: ${availableVersions.join(', ')}`);
+  if (!legacyVersions.includes(selectedVersion)) {
+    fShowMessage('❌ Error', `Invalid version selected. Please enter one of the available versions: ${legacyVersions.join(', ')}`);
     return;
   }
 
-  // 5. Create the new character sheet and log it.
-  const parentFolder = fGetOrCreateFolder('MetaScape Flex'); // We still need the folder reference
+  fCreateCharacterFromVersion(selectedVersion);
+} // End function fCreateLegacyCharacter
+
+
+/* function fCreateCharacterFromVersion
+   Purpose: The core logic for character creation, now triggered by a specific version.
+   Assumptions: The initial setup has already been run and a valid version is provided.
+   Notes: This is the generic helper function called by the menu controllers.
+   @param {string} selectedVersion - The version of the character to create.
+   @returns {void}
+*/
+function fCreateCharacterFromVersion(selectedVersion) {
+  if (!selectedVersion) {
+    fShowMessage('❌ Error', 'No version was provided for character creation.');
+    return;
+  }
+
+  // Create the new character sheet and log it.
+  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
   fCreateNewCharacterSheet(selectedVersion, parentFolder);
 
-} // End function fCreateCharacter
+} // End function fCreateCharacterFromVersion
+
+

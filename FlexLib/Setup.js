@@ -19,7 +19,8 @@ function fInitialSetup() {
   // 1. Create Folder Structure
   fShowToast('Creating Google Drive folders...', '⚙️ Setup');
   const parentFolder = fGetOrCreateFolder('MetaScape Flex');
-  const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
+  fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
+  fGetOrCreateFolder('Characters', parentFolder); // Create the new Characters sub-folder
 
   // 2. Move and Rename this Codex
   fShowToast('Organizing your Codex file...', '⚙️ Setup');
@@ -38,6 +39,7 @@ function fInitialSetup() {
   const sourceData = sourceSheet.getDataRange().getValues();
 
   // 4. Sync all files and log them to the local <MyVersions> sheet
+  const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
 
   fShowMessage('✅ Setup Complete!', 'Your Player\'s Codex is now ready to use.');

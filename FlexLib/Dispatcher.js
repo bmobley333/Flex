@@ -19,7 +19,8 @@ function run(command) {
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
       Test: fTestIdManagement,
-      CreateCharacter: fCreateCharacter,
+      CreateLatestCharacter: fCreateLatestCharacter,
+      CreateLegacyCharacter: fCreateLegacyCharacter,
       DeleteCharacter: fDeleteCharacter,
       ClearProperties: fClearAllScriptProperties,
     };

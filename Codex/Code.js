@@ -52,6 +52,27 @@ function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
 
+
+/* function fMenuCreateLatestCharacter
+   Purpose: Local trigger for the "Create New Character > Latest Version" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuCreateLatestCharacter() {
+  FlexLib.run('CreateLatestCharacter');
+} // End function fMenuCreateLatestCharacter
+
+/* function fMenuCreateLegacyCharacter
+   Purpose: Local trigger for the "Create New Character > Older Legacy Version" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuCreateLegacyCharacter() {
+  FlexLib.run('CreateLegacyCharacter');
+} // End function fMenuCreateLegacyCharacter
+
 /* function fMenuDeleteCharacter
    Purpose: Local trigger for the "Delete Character(s)" menu item.
    Assumptions: None.
