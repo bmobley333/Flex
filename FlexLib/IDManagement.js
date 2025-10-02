@@ -54,7 +54,7 @@ function fLoadSheetIDsFromCodex() {
   }
 
   for (let r = startRow; r <= endRow; r++) {
-    const version = arr[r][colTags.version];
+    const version = String(arr[r][colTags.version]); // This line is changed
     const abbr = arr[r][colTags.ssabbr];
     const id = arr[r][colTags.ssid];
     const fullName = arr[r][colTags.ssfullname];

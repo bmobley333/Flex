@@ -6,6 +6,18 @@
 // Start - Testing Utilities
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fClearAllScriptProperties
+   Purpose: A utility to completely clear the script's property cache.
+   Assumptions: To be run manually from the script editor for testing purposes.
+   Notes: This is essential for re-testing first-run experiences.
+   @returns {void}
+*/
+function fClearAllScriptProperties() {
+  PropertiesService.getScriptProperties().deleteAllProperties();
+  fShowMessage('✅ Success', 'All script properties have been cleared.');
+} // End function fClearAllScriptProperties
+
+
 /* function fTestIdManagement
    Purpose: A test function to verify that the ID caching system is working.
    Assumptions: The 'Codex' spreadsheet has a 'Versions' sheet with data for a 'DB' entry.

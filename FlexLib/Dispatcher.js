@@ -21,6 +21,7 @@ function run(command) {
       Test: fTestIdManagement,
       GetLatestVersions: fGetLatestVersions,
       CreateCharacter: fCreateCharacter,
+      ClearProperties: fClearAllScriptProperties,
     };
 
     if (commandMap[command]) {
