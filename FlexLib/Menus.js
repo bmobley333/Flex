@@ -21,6 +21,7 @@ function fCreateCodexMenu() {
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
     .addSubMenu(createMenu)
+    .addItem('Rename Character', 'fMenuRenameCharacter')
     .addSeparator()
     .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
     .addToUi();

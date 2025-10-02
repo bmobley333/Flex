@@ -21,6 +21,7 @@ function run(command) {
       Test: fTestIdManagement,
       CreateLatestCharacter: fCreateLatestCharacter,
       CreateLegacyCharacter: fCreateLegacyCharacter,
+      RenameCharacter: fRenameCharacter,
       DeleteCharacter: fDeleteCharacter,
       ClearProperties: fClearAllScriptProperties,
     };

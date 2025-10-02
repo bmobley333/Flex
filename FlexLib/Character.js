@@ -6,6 +6,89 @@
 // Start - Character Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fRenameCharacter
+   Purpose: The master orchestrator for the character renaming workflow.
+   Assumptions: The Codex has a <Characters> sheet.
+   Notes: Handles selection, prompting, and execution of the rename process.
+   @returns {void}
+*/
+function fRenameCharacter() {
+  const ssKey = 'Codex';
+  const sheetName = 'Characters';
+  fLoadSheetToArray(ssKey, sheetName);
+  fBuildTagMaps(ssKey, sheetName);
+
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName(sheetName);
+  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+
+  const startRow = rowTags.tablestart;
+  const endRow = rowTags.tableend;
+  const checkboxCol = colTags.checkbox;
+  const charNameCol = colTags.charname;
+  const csidCol = colTags.csid;
+  const versionCol = colTags.version;
+
+  // 1. Find the selected character (must be exactly one)
+  const selectedCharacters = [];
+  for (let r = startRow; r <= endRow; r++) {
+    if (arr[r] && arr[r][checkboxCol] === true && arr[r][charNameCol]) {
+      selectedCharacters.push({
+        row: r + 1, // 1-based row
+        name: arr[r][charNameCol],
+        id: arr[r][csidCol],
+        version: arr[r][versionCol],
+      });
+    }
+  }
+
+  // 2. Validate the selection
+  if (selectedCharacters.length === 0) {
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the character you wish to rename.');
+    return;
+  }
+  if (selectedCharacters.length > 1) {
+    fShowMessage('❌ Error', 'Multiple characters selected. Please select only one character to rename.');
+    return;
+  }
+
+  const character = selectedCharacters[0];
+
+  // 3. Get current names and prompt for a new one
+  const file = DriveApp.getFileById(character.id);
+  const currentFileName = file.getName();
+  const currentSheetName = character.name;
+
+  let promptMessage = `Current Name: ${currentSheetName}\n`;
+  if (currentFileName !== currentSheetName) {
+    promptMessage += `Current File Name: ${currentFileName}\n`;
+  }
+  promptMessage += '\nPlease enter the new name for this character:';
+
+  const newBaseName = fPromptWithInput('Rename Character', promptMessage);
+
+  if (!newBaseName) {
+    fShowMessage('ℹ️ Canceled', 'Rename operation canceled.');
+    return;
+  }
+
+  // 4. Process the new name (strip and re-apply correct version prefix)
+  const cleanedName = newBaseName.replace(/^v\d+\s*/, '').trim();
+  const finalName = `v${character.version} ${cleanedName}`;
+
+  // 5. Execute the rename
+  fShowToast(`Renaming to "${finalName}"...`, 'Rename Character');
+  file.setName(finalName);
+
+  const nameCell = destSheet.getRange(character.row, charNameCol + 1);
+  const url = nameCell.getRichTextValue().getLinkUrl();
+  const newLink = SpreadsheetApp.newRichTextValue().setText(finalName).setLinkUrl(url).build();
+  nameCell.setRichTextValue(newLink);
+
+  // 6. Final success message
+  fShowMessage('✅ Success', `"${currentSheetName}" has been successfully renamed to "${finalName}".`);
+
+} // End function fRenameCharacter
 
 /* function fDeleteCharacter
    Purpose: The master orchestrator for the character deletion workflow.
