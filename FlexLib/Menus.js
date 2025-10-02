@@ -17,6 +17,7 @@ function fCreateCodexMenu() {
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
     .addItem('Create New Character', 'fMenuCreateCharacter')
+    .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
     .addToUi();
 } // End function fCreateCodexMenu
 

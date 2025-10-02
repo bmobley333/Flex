@@ -18,8 +18,9 @@ function run(command) {
     const commandMap = {
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
-      Test: fTestIdManagement, // Reverted to its original function
+      Test: fTestIdManagement,
       CreateCharacter: fCreateCharacter,
+      DeleteCharacter: fDeleteCharacter,
       ClearProperties: fClearAllScriptProperties,
     };
 

@@ -52,6 +52,15 @@ function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
 
+/* function fMenuDeleteCharacter
+   Purpose: Local trigger for the "Delete Character(s)" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuDeleteCharacter() {
+  FlexLib.run('DeleteCharacter');
+} // End function fMenuDeleteCharacter
 
 /* function fMenuCreateCharacter
    Purpose: Local trigger for the "Create New Character" menu item.

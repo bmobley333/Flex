@@ -6,6 +6,91 @@
 // Start - Character Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fDeleteCharacter
+   Purpose: The master orchestrator for the character deletion workflow.
+   Assumptions: The Codex has a <Characters> sheet with a 'CheckBox' column.
+   Notes: Handles single or multiple selections and provides a confirmation prompt before proceeding.
+   @returns {void}
+*/
+function fDeleteCharacter() {
+  const ssKey = 'Codex';
+  const sheetName = 'Characters';
+  fLoadSheetToArray(ssKey, sheetName);
+  fBuildTagMaps(ssKey, sheetName);
+
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName(sheetName);
+  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+
+  const startRow = rowTags.tablestart;
+  const endRow = rowTags.tableend;
+  const checkboxCol = colTags.checkbox;
+  const charNameCol = colTags.charname;
+  const csidCol = colTags.csid;
+
+  if (checkboxCol === undefined || charNameCol === undefined || csidCol === undefined) {
+    fShowMessage('❌ Error', 'The <Characters> sheet is missing a "CheckBox", "CharName", or "CSID" column tag.');
+    return;
+  }
+
+  // 1. Find all checked characters
+  const selectedCharacters = [];
+  for (let r = startRow; r <= endRow; r++) {
+    // Only consider rows that actually have a character name
+    if (arr[r] && arr[r][checkboxCol] === true && arr[r][charNameCol]) {
+      selectedCharacters.push({
+        row: r + 1, // Store 1-based row for later
+        name: arr[r][charNameCol],
+        id: arr[r][csidCol],
+      });
+    }
+  }
+
+  // 2. Validate the selection and get user confirmation
+  if (selectedCharacters.length === 0) {
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the character(s) you wish to delete.');
+    return;
+  } else if (selectedCharacters.length === 1) {
+    const charName = selectedCharacters[0].name;
+    const promptMessage = `⚠️ Are you sure you wish to permanently DELETE the character "${charName}"?\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE below.`;
+    const confirmationText = fPromptWithInput('Confirm Deletion', promptMessage);
+    if (confirmationText === null || confirmationText.toLowerCase().trim() !== 'delete') {
+      fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
+      return;
+    }
+  } else {
+    const names = selectedCharacters.map(c => `- ${c.name}`).join('\n');
+    const promptMessage = `⚠️ Are you sure you wish to permanently DELETE the following ${selectedCharacters.length} characters?\n\n${names}\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE ALL below.`;
+    const confirmationText = fPromptWithInput('Confirm Bulk Deletion', promptMessage);
+    if (confirmationText === null || confirmationText.toLowerCase().trim() !== 'delete all') {
+      fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
+      return;
+    }
+  }
+
+  // 3. Trash the Google Drive files
+  selectedCharacters.forEach(character => {
+    try {
+      fShowToast(`🗑️ Trashing file for ${character.name}...`, 'Deleting');
+      DriveApp.getFileById(character.id).setTrashed(true);
+    } catch (e) {
+      console.error(`Could not trash file with ID ${character.id} for character ${character.name}. It may have already been deleted. Error: ${e}`);
+    }
+  });
+
+  // 4. Delete the spreadsheet rows using our new robust helper
+  // Sort in reverse order to avoid index shifting issues
+  selectedCharacters.sort((a, b) => b.row - a.row).forEach(character => {
+    fDeleteTableRow(destSheet, character.row);
+  });
+
+  // 5. Final success message
+  const deletedNames = selectedCharacters.map(c => c.name).join(', ');
+  fShowMessage('✅ Success', `The following character(s) have been deleted:\n\n${deletedNames}`);
+
+} // End function fDeleteCharacter
+
 /* function fCreateNewCharacterSheet
    Purpose: Creates and names a new character sheet from the local master and logs it in the Codex.
    Assumptions: The required master files for the selected version have already been synced and logged in <MyVersions>.
