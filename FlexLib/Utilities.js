@@ -72,14 +72,14 @@ function fParseA1Notation(notationString) {
 
 /* function fLoadSheetToArray
    Purpose: Loads an entire sheet's data into the global g object for in-memory processing.
-   Assumptions: The active spreadsheet contains a sheet with the specified sheetName.
+   Assumptions: The sheet with the specified sheetName exists in the provided spreadsheet object.
    Notes: Creates the necessary object structure within g if it doesn't exist.
    @param {string} spreadsheetName - The key to use for the spreadsheet in the g object (e.g., 'Ver').
    @param {string} sheetName - The exact, case-sensitive name of the sheet to load.
+   @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss=SpreadsheetApp.getActiveSpreadsheet()] - The spreadsheet object to load from.
    @returns {void}
 */
-function fLoadSheetToArray(spreadsheetName, sheetName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function fLoadSheetToArray(spreadsheetName, sheetName, ss = SpreadsheetApp.getActiveSpreadsheet()) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     throw new Error(`Sheet "${sheetName}" could not be found.`);

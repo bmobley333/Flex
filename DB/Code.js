@@ -43,6 +43,17 @@ function fActivateMenus() {
   );
 } // End function fActivateMenus
 
+
+/* function fMenuBuildPowers
+   Purpose: Local trigger for the "Build Powers" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuBuildPowers() {
+  FlexLib.run('BuildPowers');
+} // End function fMenuBuildPowers
+
 /* function fMenuPlaceholder
    Purpose: Local trigger for placeholder menu items.
    Assumptions: None.

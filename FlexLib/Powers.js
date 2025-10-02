@@ -1,0 +1,122 @@
+/* global g, fGetSheetId, SpreadsheetApp, fBuildTagMaps, fShowMessage, fShowToast */
+/* exported fBuildPowers */
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// End - n/a
+// Start - Power List Generation
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* function fBuildPowers
+   Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
+   Assumptions: The user is running this from the DB spreadsheet.
+   Notes: This is a destructive and regenerative process.
+   @returns {void}
+*/
+function fBuildPowers() {
+  fShowToast('⏳ Initializing power build...', 'Build Powers');
+
+  // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
+  const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
+  if (!tablesId) {
+    fShowMessage('❌ Error', 'Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
+    return;
+  }
+
+  // 2. Define source and destination details
+  const sourceSS = SpreadsheetApp.openById(tablesId);
+  const sourceSheetName = 'Class';
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheetName = 'Powers';
+
+  const sourceSheet = sourceSS.getSheetByName(sourceSheetName);
+  const destSheet = destSS.getSheetByName(destSheetName);
+
+  if (!sourceSheet) {
+    fShowMessage('❌ Error', `Could not find the <${sourceSheetName}> sheet in the Tables spreadsheet.`);
+    return;
+  }
+  if (!destSheet) {
+    fShowMessage('❌ Error', `Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
+    return;
+  }
+
+  // 3. Load data and build tag maps for both sheets
+  g.Tbls = {}; // Ensure the namespace exists
+  fLoadSheetToArray('Tbls', sourceSheetName, sourceSS);
+  fBuildTagMaps('Tbls', sourceSheetName);
+
+  g.DB = {}; // Ensure the namespace for the local DB is fresh
+  fLoadSheetToArray('DB', destSheetName, destSS);
+  fBuildTagMaps('DB', destSheetName);
+
+  const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = g.Tbls[sourceSheetName];
+  const { rowTags: destRowTags, colTags: destColTags } = g.DB[destSheetName];
+
+  // 4. Verify that the column structures match before proceeding
+  const columnsToCopy = ['rnd6', 'type', 'subtype', 'tablename', 'source', 'usage', 'action', 'abilityname', 'effect'];
+  for (const tag of columnsToCopy) {
+    if (sourceColTags[tag] === undefined || destColTags[tag] === undefined) {
+      const message = `Column mismatch detected. Both <${sourceSheetName}> and <${destSheetName}> must have a column tagged with "${tag}".`;
+      fShowMessage('❌ Error', message);
+      return;
+    }
+  }
+
+  // 5. Clear the destination sheet below the header
+  fShowToast('⏳ Clearing old power data...', 'Build Powers');
+  const headerRowIndex = destRowTags.header;
+  if (headerRowIndex === undefined) {
+    fShowMessage('❌ Error', `The <${destSheetName}> sheet is missing a "Header" row tag.`);
+    return;
+  }
+  const lastRow = destSheet.getLastRow();
+  if (lastRow > headerRowIndex + 1) {
+    destSheet.deleteRows(headerRowIndex + 2, lastRow - (headerRowIndex + 1));
+  }
+
+  // 6. Process the source data directly into the final array
+  fShowToast('⏳ Processing new powers...', 'Build Powers');
+  const finalData = [];
+  const sourceHeaderIndex = sourceRowTags.header;
+
+  for (let r = sourceHeaderIndex + 1; r < sourceArr.length; r++) {
+    const row = sourceArr[r];
+    if (row[sourceColTags.rnd6]) { // Only process rows with an Rnd6 value
+      const tableName = row[sourceColTags.tablename];
+      const abilityName = row[sourceColTags.abilityname];
+      const usage = row[sourceColTags.usage];
+      const action = row[sourceColTags.action];
+      const effect = row[sourceColTags.effect];
+
+      // This value serves as both the DropDown content and the sort key
+      const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
+
+      const newRow = [
+        dropDownValue,
+        row[sourceColTags.rnd6],
+        row[sourceColTags.type],
+        row[sourceColTags.subtype],
+        tableName,
+        row[sourceColTags.source],
+        usage,
+        action,
+        abilityName,
+        effect,
+      ];
+      finalData.push(newRow);
+    }
+  }
+
+  // 7. Sort the array by the first column (the DropDown value)
+  fShowToast('⏳ Sorting powers...', 'Build Powers');
+  finalData.sort((a, b) => a[0].localeCompare(b[0]));
+
+  // 8. Write the new data to the destination sheet
+  if (finalData.length > 0) {
+    fShowToast(`⏳ Writing ${finalData.length} new powers...`, 'Build Powers');
+    // Start writing at column 2 (B) to leave column A for row tags
+    destSheet.getRange(headerRowIndex + 2, 2, finalData.length, finalData[0].length).setValues(finalData);
+  }
+
+  fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${finalData.length} powers.`);
+} // End function fBuildPowers

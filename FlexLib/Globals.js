@@ -27,4 +27,5 @@ const g = {
   Codex: {},
   CS: {},
   DB: {},
+  Tbls: {},
 }; // End const g

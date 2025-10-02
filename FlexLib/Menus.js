@@ -58,17 +58,13 @@ function fCreateStandardMenus() {
    Notes: This can be used by any sheet to create a consistent designer menu.
    @returns {void}
 */
-/* function fCreateDesignerMenu
-   Purpose: Creates the generic "Designer" custom menu.
-   Assumptions: This is called from an onOpen trigger.
-   Notes: This can be used by any sheet to create a consistent designer menu.
-   @returns {void}
-*/
 function fCreateDesignerMenu() {
   SpreadsheetApp.getUi()
     .createMenu('Designer')
     .addItem('Tag Verification', 'fMenuTagVerification')
     .addItem('Show/Hide All', 'fMenuToggleVisibility')
+    .addSeparator()
+    .addItem('Build Powers', 'fMenuBuildPowers')
     .addSeparator()
     .addItem('Clear PropertiesService', 'fMenuClearProperties')
     .addSeparator()

@@ -6,6 +6,40 @@
 // Start - ID Management & Caching
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fGetMasterSheetId
+   Purpose: Gets a specific spreadsheet ID from the master <Versions> sheet.
+   Assumptions: The master <Versions> sheet is accessible and correctly tagged.
+   Notes: This is used for processes that need direct access to master file IDs, not local copies.
+   @param {string} version - The version number of the sheet ID to retrieve (e.g., '3').
+   @param {string} ssAbbr - The abbreviated name of the sheet (e.g., 'Tbls').
+   @returns {string|null} The spreadsheet ID, or null if not found.
+*/
+function fGetMasterSheetId(version, ssAbbr) {
+  const sourceSS = SpreadsheetApp.openById(g.MASTER_VER_ID);
+  fLoadSheetToArray('Ver', 'Versions', sourceSS);
+  fBuildTagMaps('Ver', 'Versions');
+
+  const { arr, rowTags, colTags } = g.Ver['Versions'];
+  const startRow = rowTags.tablestart;
+  const endRow = rowTags.tableend;
+
+  if (startRow === undefined || endRow === undefined) {
+    throw new Error("Could not find 'tablestart' or 'tableend' row tags in the master <Versions> sheet.");
+  }
+
+  for (let r = startRow; r <= endRow; r++) {
+    const rowVersion = String(arr[r][colTags.version]);
+    const rowAbbr = arr[r][colTags.ssabbr];
+
+    if (rowVersion === version && rowAbbr === ssAbbr) {
+      return arr[r][colTags.ssid]; // Return the ID as soon as we find the match
+    }
+  }
+
+  return null; // Return null if no match is found after checking all rows
+} // End function fGetMasterSheetId
+
+
 /* function fGetSheetId
    Purpose: Gets a specific spreadsheet ID from the player's local collection, using a cache-first approach.
    Assumptions: The Codex has a <MyVersions> sheet that has been populated.
