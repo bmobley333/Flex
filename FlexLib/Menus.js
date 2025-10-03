@@ -36,6 +36,7 @@ function fCreateCodexMenu() {
 function fCreateFlexMenu() {
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
+    .addItem('Filter Powers⚡', 'fMenuFilterPowers')
     .addItem('More Actions Coming Soon...', 'fMenuPlaceholder')
     .addToUi();
 } // End function fCreateFlexMenu
@@ -65,6 +66,7 @@ function fCreateDesignerMenu() {
     .addItem('Show/Hide All', 'fMenuToggleVisibility')
     .addSeparator()
     .addItem('Build Powers', 'fMenuBuildPowers')
+    .addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables') // Changed Line
     .addSeparator()
     .addItem('Clear PropertiesService', 'fMenuClearProperties')
     .addSeparator()

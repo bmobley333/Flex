@@ -6,6 +6,75 @@
 // Start - Power List Generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fUpdatePowerTablesList
+   Purpose: Updates the <Choose Powers> sheet with a unique list of all TableNames from the master DB <Powers> sheet.
+   Assumptions: The user is running this from a Character Sheet that contains a sheet named <Choose Powers>.
+   Notes: This is a designer-facing function for template maintenance. It dynamically adds/removes rows as needed.
+   @returns {void}
+*/
+function fUpdatePowerTablesList() {
+  fShowToast('⏳ Updating power table list...', 'Sync Power Tables');
+
+  // 1. Get the ID for the master DB spreadsheet
+  const dbId = fGetMasterSheetId(g.CURRENT_VERSION, 'DB'); // <-- Corrected Line
+  if (!dbId) {
+    fShowMessage('❌ Error', 'Could not find the master "DB" spreadsheet ID in the master <Versions> sheet.');
+    return;
+  }
+
+  // 2. Open the source DB <Powers> sheet and get all TableName values
+  const sourceSS = SpreadsheetApp.openById(dbId);
+  const sourceSheet = sourceSS.getSheetByName('Powers');
+  if (!sourceSheet) {
+    fShowMessage('❌ Error', 'Could not find the <Powers> sheet in the master DB file.');
+    return;
+  }
+
+  fLoadSheetToArray('DB', 'Powers', sourceSS);
+  fBuildTagMaps('DB', 'Powers');
+  const { arr, rowTags, colTags } = g.DB.Powers;
+  const startRow = rowTags.header + 1; // Data starts after the header
+  const tableNameCol = colTags.tablename;
+
+  const allTableNames = arr.slice(startRow).map(row => row[tableNameCol]);
+  const uniqueTableNames = [...new Set(allTableNames)].sort();
+
+  // 3. Get the destination <Choose Powers> sheet and its properties
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName('Choose Powers');
+  if (!destSheet) {
+    fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet in this spreadsheet.');
+    return;
+  }
+
+  fLoadSheetToArray('CS', 'Choose Powers', destSS);
+  fBuildTagMaps('CS', 'Choose Powers');
+  const { rowTags: destRowTags, colTags: destColTags } = g.CS['Choose Powers'];
+  const destHeaderRow = destRowTags.header;
+  const destTableNameCol = destColTags.tablename + 1;
+  const destCheckboxCol = destColTags.isactive + 1;
+
+  // 4. Adjust rows to match the new list size
+  const lastRow = destSheet.getLastRow();
+  const currentRowCount = lastRow - destHeaderRow;
+  const newRowCount = uniqueTableNames.length;
+
+  if (newRowCount > currentRowCount) {
+    destSheet.insertRowsAfter(lastRow, newRowCount - currentRowCount);
+  } else if (newRowCount < currentRowCount) {
+    destSheet.deleteRows(destHeaderRow + 1 + newRowCount, currentRowCount - newRowCount);
+  }
+
+  // 5. Write the new data and insert checkboxes
+  if (newRowCount > 0) {
+    const tableNameData = uniqueTableNames.map(name => [name]); // Convert to 2D array
+    destSheet.getRange(destHeaderRow + 1, destTableNameCol, newRowCount, 1).setValues(tableNameData);
+    destSheet.getRange(destHeaderRow + 1, destCheckboxCol, newRowCount, 1).insertCheckboxes();
+  }
+
+  fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);
+} // End function fUpdatePowerTablesList
+
 /* function fBuildPowers
    Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
    Assumptions: The user is running this from the DB spreadsheet.
