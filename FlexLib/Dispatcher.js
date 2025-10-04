@@ -26,8 +26,8 @@ function run(command) {
       ClearProperties: fClearAllScriptProperties,
       ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
-      UpdatePowerTables: fUpdatePowerTablesList, // New Line
-      FilterPowers: fShowPlaceholderMessage, // New Line - Placeholder for now
+      UpdatePowerTables: fUpdatePowerTablesList,
+      FilterPowers: fFilterPowers, // <-- Updated Line
     };
 
     if (commandMap[command]) {

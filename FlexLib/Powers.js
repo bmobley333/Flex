@@ -75,6 +75,104 @@ function fUpdatePowerTablesList() {
   fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);
 } // End function fUpdatePowerTablesList
 
+
+/* function fFilterPowers
+   Purpose: Builds custom power selection dropdowns on the Character Sheet based on the player's choices in <Choose Powers>.
+   Assumptions: The user is running this from a Character Sheet. The CS has a <Choose Powers> and a game sheet with power dropdown tags.
+   Notes: This is the primary player-facing function for customizing their power list. It now also populates a local cache sheet.
+   @returns {void}
+*/
+function fFilterPowers() {
+  fShowToast('⏳ Filtering power lists...', 'Filter Powers');
+
+  // 1. Read the player's choices from the <Choose Powers> sheet.
+  const csSS = SpreadsheetApp.getActiveSpreadsheet();
+  const choicesSheet = csSS.getSheetByName('Choose Powers');
+  if (!choicesSheet) {
+    fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet.');
+    return;
+  }
+  fLoadSheetToArray('CS', 'Choose Powers', csSS);
+  fBuildTagMaps('CS', 'Choose Powers');
+
+  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = g.CS['Choose Powers'];
+  const choicesHeaderRow = choicesRowTags.header;
+  const tableNameCol = choicesColTags.tablename;
+  const isActiveCol = choicesColTags.isactive;
+
+  const selectedTables = choicesArr
+    .slice(choicesHeaderRow + 1)
+    .filter(row => row[isActiveCol] === true)
+    .map(row => row[tableNameCol]);
+
+  if (selectedTables.length === 0) {
+    fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Choose Powers> sheet before filtering.');
+    return;
+  }
+
+  // 2. Fetch all powers from the player's local DB copy.
+  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
+  if (!dbId) {
+    fShowMessage('❌ Error', 'Could not find the ID for the "DB" spreadsheet in <MyVersions>.');
+    return;
+  }
+  const dbSS = SpreadsheetApp.openById(dbId);
+  try {
+    fLoadSheetToArray('DB', 'Powers', dbSS);
+  } catch (e) {
+    fShowMessage('❌ Error', 'Could not find or load the <Powers> sheet in your DB file.');
+    return;
+  }
+  fBuildTagMaps('DB', 'Powers');
+  const { arr: allPowers, rowTags: dbRowTags, colTags: dbColTags } = g.DB.Powers;
+
+  // 3. Filter the powers in-memory.
+  const filteredPowers = allPowers
+    .slice(dbRowTags.header + 1)
+    .filter(row => selectedTables.includes(row[dbColTags.tablename]));
+
+  if (filteredPowers.length === 0) {
+    fShowMessage('⚠️ No Powers Found', 'No powers matched your selected filters. The dropdowns will be empty.');
+  }
+
+  // 4. Populate the <PowerDataCache> sheet
+  const cacheSheet = csSS.getSheetByName('PowerDataCache');
+  if (!cacheSheet) {
+    fShowMessage('❌ Error', 'Could not find the <PowerDataCache> sheet.');
+    return;
+  }
+  cacheSheet.clear(); // Clear old data
+  const dbHeader = allPowers[dbRowTags.header];
+  const dataToCache = [dbHeader, ...filteredPowers]; // Include header for easy lookups later
+  cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
+  fShowToast('⚡ Power data cached locally.', 'Filter Powers');
+
+
+  // 5. Build and apply the validation rule to the <Game> sheet.
+  const filteredPowerList = filteredPowers.map(row => row[dbColTags.dropdown]);
+  const gameSheet = csSS.getSheetByName('Game');
+  if (!gameSheet) {
+    fShowMessage('❌ Error', 'Could not find the <Game> sheet.');
+    return;
+  }
+  fLoadSheetToArray('CS', 'Game', csSS);
+  fBuildTagMaps('CS', 'Game');
+  const { rowTags: gameRowTags, colTags: gameColTags } = g.CS.Game;
+
+  const startRow = gameRowTags.powertablestart + 1;
+  const endRow = gameRowTags.powertableend + 1;
+  const numRows = endRow - startRow + 1;
+
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredPowerList, true).setAllowInvalid(false).build();
+  const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('powerdropdown'));
+  dropDownCols.forEach(tag => {
+    const colIndex = gameColTags[tag] + 1;
+    gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
+  });
+
+  fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);
+} // End function fFilterPowers
+
 /* function fBuildPowers
    Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
    Assumptions: The user is running this from the DB spreadsheet.
