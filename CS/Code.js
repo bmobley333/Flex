@@ -114,7 +114,7 @@ function onEdit(e) {
     dropdown: cacheHeader.indexOf('DropDown'),
     usage: cacheHeader.indexOf('Usage'),
     action: cacheHeader.indexOf('Action'),
-    name: cacheHeader.indexOf('Power'), // <-- Corrected from 'AbilityName'
+    name: cacheHeader.indexOf('Power'),
     effect: cacheHeader.indexOf('Effect'),
   };
 
