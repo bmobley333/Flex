@@ -1,4 +1,8 @@
-/* global FlexLib */
+/* global FlexLib, SpreadsheetApp */
+
+// --- Session Cache for Power Data ---
+// This global variable will hold the power data in memory for the current session to make lookups instantaneous.
+let powerDataCache = null;
 
 /* function onOpen
    Purpose: Simple trigger that runs automatically when the spreadsheet is opened.
@@ -9,6 +13,91 @@
 function onOpen() {
   FlexLib.fCreateStandardMenus();
 } // End function onOpen
+
+/* function onEdit
+   Purpose: A simple trigger that auto-populates power details from a high-speed session cache when a power is selected from a dropdown.
+   Assumptions: The <PowerDataCache> sheet exists. The <Game> sheet is tagged correctly.
+   Notes: This is the final, optimized auto-formatter. The first run in a session is slow; subsequent runs are instant.
+   @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object passed by the trigger.
+   @returns {void}
+*/
+function onEdit(e) {
+  const sheet = e.range.getSheet();
+  const sheetName = sheet.getName();
+  const col = e.range.getColumn();
+  const row = e.range.getRow();
+  const selectedValue = e.value;
+
+  if (sheetName !== 'Game') {
+    return;
+  }
+
+  const csHeader = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const editedColTag = csHeader[col - 1];
+  if (!editedColTag || !editedColTag.startsWith('PowerDropDown')) {
+    return;
+  }
+
+  const tagIndex = editedColTag.replace('PowerDropDown', '');
+  const csTargetTags = {
+    usage: `PowerUsage${tagIndex}`,
+    action: `PowerAction${tagIndex}`,
+    name: `PowerName${tagIndex}`,
+    effect: `PowerEffect${tagIndex}`,
+  };
+
+  if (!selectedValue) {
+    Object.values(csTargetTags).forEach(tag => {
+      const targetColIndex = csHeader.indexOf(tag);
+      if (targetColIndex !== -1) {
+        sheet.getRange(row, targetColIndex + 1).clearContent();
+      }
+    });
+    return;
+  }
+
+  // 1. Check if the session cache is populated. If not, build it.
+  if (!powerDataCache) {
+    const cacheSheet = e.source.getSheetByName('PowerDataCache');
+    if (!cacheSheet) return;
+
+    const allCachedPowers = cacheSheet.getDataRange().getValues();
+    const cacheHeader = allCachedPowers.shift(); // Remove header row
+
+    const cacheColMap = {
+      dropdown: cacheHeader.indexOf('DropDown'),
+      usage: cacheHeader.indexOf('Usage'),
+      action: cacheHeader.indexOf('Action'),
+      name: cacheHeader.indexOf('Power'),
+      effect: cacheHeader.indexOf('Effect'),
+    };
+
+    // Build the cache as a Map for instant lookups
+    powerDataCache = new Map();
+    allCachedPowers.forEach(pRow => {
+      const key = pRow[cacheColMap.dropdown];
+      const value = {
+        usage: pRow[cacheColMap.usage],
+        action: pRow[cacheColMap.action],
+        name: pRow[cacheColMap.name],
+        effect: pRow[cacheColMap.effect],
+      };
+      powerDataCache.set(key, value);
+    });
+  }
+
+  // 2. Perform an instantaneous lookup from the session cache
+  const powerData = powerDataCache.get(selectedValue);
+
+  if (!powerData) return; // Power not found in cache
+
+  // 3. Write the details to the correct adjacent cells
+  sheet.getRange(row, csHeader.indexOf(csTargetTags.usage) + 1).setValue(powerData.usage);
+  sheet.getRange(row, csHeader.indexOf(csTargetTags.action) + 1).setValue(powerData.action);
+  sheet.getRange(row, csHeader.indexOf(csTargetTags.name) + 1).setValue(powerData.name);
+  sheet.getRange(row, csHeader.indexOf(csTargetTags.effect) + 1).setValue(powerData.effect);
+} // End function onEdit
+
 
 /* function fMenuTagVerification
    Purpose: The local trigger function called by the "Tag Verification" menu item.
@@ -59,73 +148,3 @@ function fMenuUpdatePowerTables() {
 function fMenuFilterPowers() {
   FlexLib.run('FilterPowers');
 } // End function fMenuFilterPowers
-
-/* function onEdit
-   Purpose: A simple trigger that auto-populates power details from a local cache when a power is selected from a dropdown.
-   Assumptions: The <PowerDataCache> sheet exists and is populated. The <Game> sheet is tagged correctly.
-   Notes: This is the auto-formatter that provides a seamless UX for the player.
-   @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object passed by the trigger.
-   @returns {void}
-*/
-function onEdit(e) {
-  const sheet = e.range.getSheet();
-  const sheetName = sheet.getName();
-  const col = e.range.getColumn();
-  const row = e.range.getRow();
-  const selectedValue = e.value;
-
-  // --- Guard Clause ---
-  if (sheetName !== 'Game') {
-    return;
-  }
-
-  const csHeader = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const editedColTag = csHeader[col - 1];
-  if (!editedColTag || !editedColTag.startsWith('PowerDropDown')) {
-    return;
-  }
-
-  const tagIndex = editedColTag.replace('PowerDropDown', '');
-  const csTargetTags = {
-    usage: `PowerUsage${tagIndex}`,
-    action: `PowerAction${tagIndex}`,
-    name: `PowerName${tagIndex}`,
-    effect: `PowerEffect${tagIndex}`,
-  };
-
-  if (!selectedValue) {
-    Object.values(csTargetTags).forEach(tag => {
-      const targetColIndex = csHeader.indexOf(tag);
-      if (targetColIndex !== -1) {
-        sheet.getRange(row, targetColIndex + 1).clearContent();
-      }
-    });
-    return;
-  }
-
-  // 1. Read data from the LOCAL <PowerDataCache> sheet
-  const cacheSheet = e.source.getSheetByName('PowerDataCache');
-  if (!cacheSheet) return; // Fail silently if cache is missing
-
-  const allCachedPowers = cacheSheet.getDataRange().getValues();
-  const cacheHeader = allCachedPowers[0];
-
-  const cacheColMap = {
-    dropdown: cacheHeader.indexOf('DropDown'),
-    usage: cacheHeader.indexOf('Usage'),
-    action: cacheHeader.indexOf('Action'),
-    name: cacheHeader.indexOf('Power'),
-    effect: cacheHeader.indexOf('Effect'),
-  };
-
-  // 2. Find the selected power in the cached data
-  const powerData = allCachedPowers.find(pRow => pRow[cacheColMap.dropdown] === selectedValue);
-
-  if (!powerData) return; // Power not found in cache
-
-  // 3. Write the details to the correct adjacent cells on the CS
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.usage) + 1).setValue(powerData[cacheColMap.usage]);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.action) + 1).setValue(powerData[cacheColMap.action]);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.name) + 1).setValue(powerData[cacheColMap.name]);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.effect) + 1).setValue(powerData[cacheColMap.effect]);
-} // End function onEdit
