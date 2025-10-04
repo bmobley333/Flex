@@ -1,8 +1,8 @@
 /* global FlexLib, SpreadsheetApp */
 
-// --- Session Cache for Power Data ---
-// This global variable will hold the power data in memory for the current session to make lookups instantaneous.
-let powerDataCache = null;
+// --- Session Caches for High-Speed Performance ---
+let powerDataCache = null; // Caches the filtered power data.
+let csHeaderCache = null; // Caches the Character Sheet header row.
 
 /* function onOpen
    Purpose: Simple trigger that runs automatically when the spreadsheet is opened.
@@ -32,7 +32,12 @@ function onEdit(e) {
     return;
   }
 
-  const csHeader = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  // 1. Use the header cache. If it's empty, populate it once.
+  if (!csHeaderCache) {
+    csHeaderCache = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  const csHeader = csHeaderCache;
+
   const editedColTag = csHeader[col - 1];
   if (!editedColTag || !editedColTag.startsWith('PowerDropDown')) {
     return;
@@ -56,7 +61,7 @@ function onEdit(e) {
     return;
   }
 
-  // 1. Check if the session cache is populated. If not, build it.
+  // 2. Use the power data cache. If it's empty, populate it once.
   if (!powerDataCache) {
     const cacheSheet = e.source.getSheetByName('PowerDataCache');
     if (!cacheSheet) return;
@@ -72,7 +77,6 @@ function onEdit(e) {
       effect: cacheHeader.indexOf('Effect'),
     };
 
-    // Build the cache as a Map for instant lookups
     powerDataCache = new Map();
     allCachedPowers.forEach(pRow => {
       const key = pRow[cacheColMap.dropdown];
@@ -86,10 +90,9 @@ function onEdit(e) {
     });
   }
 
-  // 2. Perform an instantaneous lookup from the session cache
   const powerData = powerDataCache.get(selectedValue);
 
-  if (!powerData) return; // Power not found in cache
+  if (!powerData) return;
 
   // 3. Write the details to the correct adjacent cells
   sheet.getRange(row, csHeader.indexOf(csTargetTags.usage) + 1).setValue(powerData.usage);
