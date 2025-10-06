@@ -12,7 +12,7 @@
    @returns {void}
 */
 function onOpen() {
-  FlexLib.fCreateDesignerMenu();
+  FlexLib.fCreateDesignerMenu('Ver');
 } // End function onOpen
 
 /* function fMenuTagVerification

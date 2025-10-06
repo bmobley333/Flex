@@ -11,7 +11,7 @@ let csHeaderCache = null; // Caches the Character Sheet header row.
    @returns {void}
 */
 function onOpen() {
-  FlexLib.fCreateStandardMenus();
+  FlexLib.fCreateGenericMenus('CS');
 } // End function onOpen
 
 /* function onEdit

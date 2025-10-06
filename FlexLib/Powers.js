@@ -13,6 +13,13 @@
    @returns {void}
 */
 function fUpdatePowerTablesList() {
+  // --- SECURITY CHECK ---
+  if (Session.getActiveUser().getEmail() !== g.ADMIN_EMAIL) {
+    fShowMessage('❌ Access Denied', 'This function is for designer use only.');
+    return;
+  }
+  // --- END SECURITY CHECK ---
+
   fShowToast('⏳ Updating power table list...', 'Sync Power Tables');
 
   // 1. Get the ID for the master DB spreadsheet
@@ -24,9 +31,7 @@ function fUpdatePowerTablesList() {
   }
   const sourceSS = SpreadsheetApp.openById(dbId);
 
-  // --- REFACTORED ---
   const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
-  // --- END REFACTORED ---
 
   // 2. Open the source DB <Powers> sheet and get all TableName values
   const sourceSheet = sourceSS.getSheetByName('Powers');
@@ -51,9 +56,7 @@ function fUpdatePowerTablesList() {
     return;
   }
 
-  // --- REFACTORED ---
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Choose Powers', destSS, true);
-  // --- END REFACTORED ---
 
   const destHeaderRow = destRowTags.header;
   const destTableNameCol = destColTags.tablename + 1;
@@ -190,6 +193,13 @@ function fFilterPowers() {
    @returns {void}
 */
 function fBuildPowers() {
+  // --- SECURITY CHECK ---
+  if (Session.getActiveUser().getEmail() !== g.ADMIN_EMAIL) {
+    fShowMessage('❌ Access Denied', 'This function is for designer use only.');
+    return;
+  }
+  // --- END SECURITY CHECK ---
+
   fShowToast('⏳ Initializing power build...', 'Build Powers');
 
   // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
@@ -252,9 +262,7 @@ function fBuildPowers() {
       return; // Continues to the next iteration of forEach
     }
 
-    // --- REFACTORED ---
     const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS);
-    // --- END REFACTORED ---
 
     const sourceHeaderIndex = sourceRowTags.header;
 

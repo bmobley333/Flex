@@ -8,7 +8,7 @@
 */
 function onOpen() {
   FlexLib.fCreateCodexMenu();
-  FlexLib.fCreateDesignerMenu();
+  FlexLib.fCreateDesignerMenu('Codex');
 } // End function onOpen
 
 /* function fMenuTagVerification

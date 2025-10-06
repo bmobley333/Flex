@@ -13,7 +13,7 @@ function onOpen() {
   const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
 
   if (isInitialized) {
-    FlexLib.fCreateStandardMenus();
+    FlexLib.fCreateDesignerMenu('DB');
   } else {
     SpreadsheetApp.getUi()
       .createMenu('*** Flex ***')

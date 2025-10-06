@@ -42,32 +42,41 @@ function fCreateFlexMenu() {
 } // End function fCreateFlexMenu
 
 
-/* function fCreateStandardMenus
-   Purpose: Creates the standard set of menus for non-Codex sheets.
+/* function fCreateGenericMenus
+   Purpose: Creates the standard set of menus for most sheets.
    Assumptions: This is called from an onOpen trigger.
    Notes: A wrapper function to ensure both the Flex and Designer menus are created.
+   @param {string} context - The context of the sheet (e.g., 'CS', 'DB').
    @returns {void}
 */
-function fCreateStandardMenus() {
+function fCreateGenericMenus(context) {
   fCreateFlexMenu();
-  fCreateDesignerMenu();
-} // End function fCreateStandardMenus
+  fCreateDesignerMenu(context);
+} // End function fCreateGenericMenus
 
 /* function fCreateDesignerMenu
-   Purpose: Creates the generic "Designer" custom menu.
+   Purpose: Creates the generic "Designer" custom menu, customized by context.
    Assumptions: This is called from an onOpen trigger.
    Notes: This can be used by any sheet to create a consistent designer menu.
+   @param {string} [context=''] - The context of the sheet ('CS', 'DB', 'Codex', etc.).
    @returns {void}
 */
-function fCreateDesignerMenu() {
-  SpreadsheetApp.getUi()
-    .createMenu('Designer')
-    .addItem('Tag Verification', 'fMenuTagVerification')
-    .addItem('Show/Hide All', 'fMenuToggleVisibility')
-    .addSeparator()
-    .addItem('Build Powers', 'fMenuBuildPowers')
-    .addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables')
-    .addSeparator()
-    .addItem('Test', 'fMenuTest')
-    .addToUi();
+function fCreateDesignerMenu(context = '') {
+  const menu = SpreadsheetApp.getUi().createMenu('Designer');
+
+  menu.addItem('Tag Verification', 'fMenuTagVerification');
+  menu.addItem('Show/Hide All', 'fMenuToggleVisibility');
+  menu.addSeparator();
+
+  // Context-specific items
+  if (context === 'DB') {
+    menu.addItem('Build Powers', 'fMenuBuildPowers');
+  }
+  if (context === 'CS') {
+    menu.addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables');
+  }
+
+  menu.addSeparator();
+  menu.addItem('Test', 'fMenuTest');
+  menu.addToUi();
 } // End function fCreateDesignerMenu
