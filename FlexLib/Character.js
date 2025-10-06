@@ -198,6 +198,9 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
   const csTemplateFile = DriveApp.getFileById(localCsId);
   const newCharSheet = csTemplateFile.makeCopy(charactersFolder);
+  const newCharSS = SpreadsheetApp.openById(newCharSheet.getId()); // Open the new sheet to operate on it
+
+  fEmbedCodexId(newCharSS); // <-- THIS IS THE NEW LINE
 
   const characterName = fPromptWithInput('Name Your Character', 'Please enter a name for your new character:');
 

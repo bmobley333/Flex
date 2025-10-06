@@ -19,8 +19,9 @@ const g = {
     ssfullname: 'Versions',
   },
 
-  // Object to cache the mapping of Version -> Abbr -> full data object
-  sheetIDs: {},
+  // --- Session Caches ---
+  codexSS: null, // Caches the Spreadsheet object for the Player's Codex.
+  sheetIDs: {}, // Caches the mapping of Version -> Abbr -> full data object.
 
   // Object structures for sheet data (arrays and tag maps)
   Ver: {},

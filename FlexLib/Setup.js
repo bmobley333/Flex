@@ -95,6 +95,13 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
     const fileName = `v${version} MASTER_${ssAbbr} - DO NOT DELETE`;
     const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
 
+    // --- THIS IS THE FIX ---
+    // Only try to embed the Codex ID if the new file is a spreadsheet.
+    if (newFile.getMimeType() === MimeType.GOOGLE_SHEETS) {
+      const newSS = SpreadsheetApp.openById(newFile.getId());
+      fEmbedCodexId(newSS);
+    }
+
     // 5. Prepare the data object to be logged
     const logData = {
       version: version,

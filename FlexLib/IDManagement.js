@@ -41,7 +41,7 @@ function fGetMasterSheetId(version, ssAbbr) {
 
 
 /* function fGetSheetId
-   Purpose: Gets a specific spreadsheet ID from the player's local collection, using a cache-first approach.
+   Purpose: Gets a specific spreadsheet ID from the player's local collection, using a session cache-first approach.
    Assumptions: The Codex has a <MyVersions> sheet that has been populated.
    Notes: This is the primary function for retrieving any local versioned sheet ID.
    @param {string} version - The version number of the sheet ID to retrieve (e.g., '3').
@@ -49,28 +49,18 @@ function fGetMasterSheetId(version, ssAbbr) {
    @returns {string} The spreadsheet ID.
 */
 function fGetSheetId(version, ssAbbr) {
-  // 1. Check if the in-memory cache is populated.
-  if (Object.keys(g.sheetIDs).length === 0) {
-    fLoadSheetIDsFromStorage();
-  }
-
-  // 2. If the cache is still empty, load from the <MyVersions> sheet as a last resort.
+  // 1. Check if the in-memory session cache (g.sheetIDs) is empty.
+  // If it is, load it from the spreadsheet. This happens once per session.
   if (Object.keys(g.sheetIDs).length === 0) {
     fLoadSheetIDsFromMyVersions();
-    fCacheSheetIDsToStorage();
   }
 
+  // 2. Attempt to retrieve the ID from the now-populated session cache.
   if (g.sheetIDs[version] && g.sheetIDs[version][ssAbbr]) {
     return g.sheetIDs[version][ssAbbr].ssid;
   } else {
-    // If not found, force a reload from the sheet and try one more time.
-    fLoadSheetIDsFromMyVersions();
-    fCacheSheetIDsToStorage();
-    if (g.sheetIDs[version] && g.sheetIDs[version][ssAbbr]) {
-      return g.sheetIDs[version][ssAbbr].ssid;
-    } else {
-      throw new Error(`Could not find a local Sheet ID for version "${version}", abbreviation "${ssAbbr}".`);
-    }
+    // 3. If it's still not found, throw a clear error.
+    throw new Error(`Could not find a local Sheet ID for version "${version}", abbreviation "${ssAbbr}". Check the <MyVersions> sheet.`);
   }
 } // End function fGetSheetId
 
@@ -83,7 +73,10 @@ function fGetSheetId(version, ssAbbr) {
 function fLoadSheetIDsFromMyVersions() {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
+  const codexSS = fGetCodexSpreadsheet(); // <-- THIS IS THE FIX
 
+  // We now explicitly load from the Codex spreadsheet object.
+  fLoadSheetToArray(ssKey, sheetName, codexSS);
   fBuildTagMaps(ssKey, sheetName);
 
   const { arr, rowTags, colTags } = g[ssKey][sheetName];
@@ -118,27 +111,3 @@ function fLoadSheetIDsFromMyVersions() {
   }
 } // End function fLoadSheetIDsFromMyVersions
 
-/* function fLoadSheetIDsFromStorage
-   Purpose: Loads the sheet ID cache from persistent PropertiesService into the global g object.
-   Assumptions: None.
-   Notes: Internal helper function.
-   @returns {void}
-*/
-function fLoadSheetIDsFromStorage() {
-  const properties = PropertiesService.getScriptProperties();
-  const storedIDs = properties.getProperty('sheetIDs');
-  if (storedIDs) {
-    g.sheetIDs = JSON.parse(storedIDs);
-  }
-} // End function fLoadSheetIDsFromStorage
-
-/* function fCacheSheetIDsToStorage
-   Purpose: Saves the in-memory sheet ID cache to persistent PropertiesService.
-   Assumptions: g.sheetIDs has been populated.
-   Notes: Internal helper function.
-   @returns {void}
-*/
-function fCacheSheetIDsToStorage() {
-  const properties = PropertiesService.getScriptProperties();
-  properties.setProperty('sheetIDs', JSON.stringify(g.sheetIDs));
-} // End function fCacheSheetIDsToStorage
