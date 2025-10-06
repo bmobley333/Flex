@@ -66,9 +66,7 @@ function fCreateDesignerMenu() {
     .addItem('Show/Hide All', 'fMenuToggleVisibility')
     .addSeparator()
     .addItem('Build Powers', 'fMenuBuildPowers')
-    .addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables') // Changed Line
-    .addSeparator()
-    .addItem('Clear PropertiesService', 'fMenuClearProperties')
+    .addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables')
     .addSeparator()
     .addItem('Test', 'fMenuTest')
     .addToUi();

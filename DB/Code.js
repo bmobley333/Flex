@@ -84,16 +84,6 @@ function fMenuToggleVisibility() {
   FlexLib.run('ToggleVisibility');
 } // End function fMenuToggleVisibility
 
-/* function fMenuClearProperties
-   Purpose: Local trigger for the "Clear PropertiesService" menu item.
-   Assumptions: None.
-   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
-   @returns {void}
-*/
-function fMenuClearProperties() {
-  FlexLib.run('ClearProperties');
-} // End function fMenuClearProperties
-
 /* function fMenuTest
    Purpose: Local trigger for the "Test" menu item.
    Assumptions: None.

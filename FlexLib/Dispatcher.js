@@ -23,11 +23,10 @@ function run(command) {
       CreateLegacyCharacter: fCreateLegacyCharacter,
       RenameCharacter: fRenameCharacter,
       DeleteCharacter: fDeleteCharacter,
-      ClearProperties: fClearAllScriptProperties,
       ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
       UpdatePowerTables: fUpdatePowerTablesList,
-      FilterPowers: fFilterPowers, // <-- Updated Line
+      FilterPowers: fFilterPowers,
     };
 
     if (commandMap[command]) {
