@@ -16,15 +16,19 @@ function fUpdatePowerTablesList() {
   fShowToast('⏳ Updating power table list...', 'Sync Power Tables');
 
   // 1. Get the ID for the master DB spreadsheet
-  const dbId = fGetMasterSheetId(g.CURRENT_VERSION, 'DB'); // <-- Corrected Line
+  const dbId = fGetMasterSheetId(g.CURRENT_VERSION, 'DB');
   if (!dbId) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find the master "DB" spreadsheet ID in the master <Versions> sheet.');
     return;
   }
+  const sourceSS = SpreadsheetApp.openById(dbId);
+
+  // --- REFACTORED ---
+  const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
+  // --- END REFACTORED ---
 
   // 2. Open the source DB <Powers> sheet and get all TableName values
-  const sourceSS = SpreadsheetApp.openById(dbId);
   const sourceSheet = sourceSS.getSheetByName('Powers');
   if (!sourceSheet) {
     fEndToast();
@@ -32,9 +36,6 @@ function fUpdatePowerTablesList() {
     return;
   }
 
-  fLoadSheetToArray('DB', 'Powers', sourceSS);
-  fBuildTagMaps('DB', 'Powers');
-  const { arr, rowTags, colTags } = g.DB.Powers;
   const startRow = rowTags.header + 1; // Data starts after the header
   const tableNameCol = colTags.tablename;
 
@@ -50,9 +51,10 @@ function fUpdatePowerTablesList() {
     return;
   }
 
-  fLoadSheetToArray('CS', 'Choose Powers', destSS);
-  fBuildTagMaps('CS', 'Choose Powers');
-  const { rowTags: destRowTags, colTags: destColTags } = g.CS['Choose Powers'];
+  // --- REFACTORED ---
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Choose Powers', destSS, true);
+  // --- END REFACTORED ---
+
   const destHeaderRow = destRowTags.header;
   const destTableNameCol = destColTags.tablename + 1;
   const destCheckboxCol = destColTags.isactive + 1;
@@ -89,18 +91,18 @@ function fUpdatePowerTablesList() {
 function fFilterPowers() {
   fShowToast('⏳ Filtering power lists...', 'Filter Powers');
 
-  // 1. Read the player's choices from the <Choose Powers> sheet.
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Read the player's choices from the <Choose Powers> sheet, forcing a refresh.
+  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Choose Powers', csSS, true);
+
   const choicesSheet = csSS.getSheetByName('Choose Powers');
   if (!choicesSheet) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet.');
     return;
   }
-  fLoadSheetToArray('CS', 'Choose Powers', csSS);
-  fBuildTagMaps('CS', 'Choose Powers');
 
-  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = g.CS['Choose Powers'];
   const choicesHeaderRow = choicesRowTags.header;
   const tableNameCol = choicesColTags.tablename;
   const isActiveCol = choicesColTags.isactive;
@@ -124,15 +126,10 @@ function fFilterPowers() {
     return;
   }
   const dbSS = SpreadsheetApp.openById(dbId);
-  try {
-    fLoadSheetToArray('DB', 'Powers', dbSS);
-  } catch (e) {
-    fEndToast();
-    fShowMessage('❌ Error', 'Could not find or load the <Powers> sheet in your DB file.');
-    return;
-  }
-  fBuildTagMaps('DB', 'Powers');
-  const { arr: allPowers, rowTags: dbRowTags, colTags: dbColTags } = g.DB.Powers;
+
+  // --- REFACTORED ---
+  const { arr: allPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
+  // --- END REFACTORED ---
 
   // 3. Filter the powers in-memory.
   const filteredPowers = allPowers
@@ -166,9 +163,10 @@ function fFilterPowers() {
     fShowMessage('❌ Error', 'Could not find the <Game> sheet.');
     return;
   }
-  fLoadSheetToArray('CS', 'Game', csSS);
-  fBuildTagMaps('CS', 'Game');
-  const { rowTags: gameRowTags, colTags: gameColTags } = g.CS.Game;
+
+  // --- REFACTORED ---
+  const { rowTags: gameRowTags, colTags: gameColTags } = fGetSheetData('CS', 'Game', csSS);
+  // --- END REFACTORED ---
 
   const startRow = gameRowTags.powertablestart + 1;
   const endRow = gameRowTags.powertableend + 1;
@@ -204,7 +202,7 @@ function fBuildPowers() {
 
   // 2. Define source and destination details
   const sourceSS = SpreadsheetApp.openById(tablesId);
-  const sourceSheetNames = ['Class', 'Race', 'CombatStyles', 'Luck']; // <-- New array of sources
+  const sourceSheetNames = ['Class', 'Race', 'CombatStyles', 'Luck'];
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheetName = 'Powers';
   const destSheet = destSS.getSheetByName(destSheetName);
@@ -217,9 +215,7 @@ function fBuildPowers() {
 
   // 3. Prepare for data aggregation and load destination sheet map
   g.DB = {}; // Ensure the namespace for the local DB is fresh
-  fLoadSheetToArray('DB', destSheetName, destSS);
-  fBuildTagMaps('DB', destSheetName);
-  const { rowTags: destRowTags, colTags: destColTags } = g.DB[destSheetName];
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS);
 
   // 4. Verify destination column structure
   const columnsToCopy = ['rnd6', 'type', 'subtype', 'tablename', 'source', 'usage', 'action', 'abilityname', 'effect'];
@@ -256,10 +252,10 @@ function fBuildPowers() {
       return; // Continues to the next iteration of forEach
     }
 
-    fLoadSheetToArray('Tbls', sourceSheetName, sourceSS);
-    fBuildTagMaps('Tbls', sourceSheetName);
+    // --- REFACTORED ---
+    const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS);
+    // --- END REFACTORED ---
 
-    const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = g.Tbls[sourceSheetName];
     const sourceHeaderIndex = sourceRowTags.header;
 
     if (sourceHeaderIndex === undefined) {

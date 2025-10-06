@@ -15,12 +15,10 @@
 function fRenameCharacter() {
   const ssKey = 'Codex';
   const sheetName = 'Characters';
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
+  const codexSS = fGetCodexSpreadsheet();
 
-  const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName(sheetName);
-  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+  // --- REFACTORED LINE ---
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
 
   const startRow = rowTags.tablestart;
   const endRow = rowTags.tableend;
@@ -80,7 +78,7 @@ function fRenameCharacter() {
   fShowToast(`Renaming to "${finalName}"...`, 'Rename Character');
   file.setName(finalName);
 
-  const nameCell = destSheet.getRange(character.row, charNameCol + 1);
+  const nameCell = codexSS.getSheetByName(sheetName).getRange(character.row, charNameCol + 1);
   const url = nameCell.getRichTextValue().getLinkUrl();
   const newLink = SpreadsheetApp.newRichTextValue().setText(finalName).setLinkUrl(url).build();
   nameCell.setRichTextValue(newLink);
@@ -100,12 +98,12 @@ function fRenameCharacter() {
 function fDeleteCharacter() {
   const ssKey = 'Codex';
   const sheetName = 'Characters';
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
+  const codexSS = fGetCodexSpreadsheet();
 
-  const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName(sheetName);
-  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+  // --- REFACTORED ---
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true); // Force refresh
+  const destSheet = codexSS.getSheetByName(sheetName);
+  // --- END REFACTORED ---
 
   const startRow = rowTags.tablestart;
   const endRow = rowTags.tableend;
@@ -200,7 +198,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const newCharSheet = csTemplateFile.makeCopy(charactersFolder);
   const newCharSS = SpreadsheetApp.openById(newCharSheet.getId()); // Open the new sheet to operate on it
 
-  fEmbedCodexId(newCharSS); // <-- THIS IS THE NEW LINE
+  fEmbedCodexId(newCharSS);
 
   const characterName = fPromptWithInput('Name Your Character', 'Please enter a name for your new character:');
 
@@ -217,12 +215,12 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   // 3. Log the new character in the Codex's <Characters> sheet
   const ssKey = 'Codex';
   const sheetName = 'Characters';
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
+  const codexSS = fGetCodexSpreadsheet();
 
-  const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName(sheetName);
-  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+  // --- REFACTORED ---
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
+  const destSheet = codexSS.getSheetByName(sheetName);
+  // --- END REFACTORED ---
 
   const startRow = rowTags.tablestart;
   const endRow = rowTags.tableend;
@@ -291,17 +289,16 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 function fCreateLatestCharacter() {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
+  const codexSS = fGetCodexSpreadsheet();
 
-  // 1. Check if the one-time setup is needed. This must be the first step.
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
-  let { arr, rowTags, colTags } = g[ssKey][sheetName];
+  // --- REFACTORED ---
+  let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
+  // --- END REFACTORED ---
+
   if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
     fInitialSetup();
     // After setup, we MUST reload the sheet data to get the new information
-    fLoadSheetToArray(ssKey, sheetName);
-    fBuildTagMaps(ssKey, sheetName);
-    let reloadedData = g[ssKey][sheetName];
+    let reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
     arr = reloadedData.arr;
     rowTags = reloadedData.rowTags;
     colTags = reloadedData.colTags;
@@ -331,17 +328,16 @@ function fCreateLatestCharacter() {
 function fCreateLegacyCharacter() {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
+  const codexSS = fGetCodexSpreadsheet();
 
-  // 1. Check if the one-time setup is needed. This must be the first step.
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
-  let { arr, rowTags, colTags } = g[ssKey][sheetName];
+  // --- REFACTORED ---
+  let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
+  // --- END REFACTORED ---
+
   if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
     fInitialSetup();
     // After setup, we MUST reload the sheet data to get the new information
-    fLoadSheetToArray(ssKey, sheetName);
-    fBuildTagMaps(ssKey, sheetName);
-    let reloadedData = g[ssKey][sheetName];
+    let reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
     arr = reloadedData.arr;
     rowTags = reloadedData.rowTags;
     colTags = reloadedData.colTags;
