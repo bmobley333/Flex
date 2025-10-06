@@ -102,6 +102,24 @@ function onEdit(e) {
 } // End function onEdit
 
 
+/* function onChange
+   Purpose: An installable trigger that invalidates session caches when the sheet's structure changes.
+   Assumptions: This trigger is manually installed for the spreadsheet.
+   Notes: This protects against data corruption if a user inserts/deletes rows or columns.
+   @param {GoogleAppsScript.Events.SheetsOnChange} e - The event object passed by the trigger.
+   @returns {void}
+*/
+function onChange(e) {
+  const structuralChanges = ['INSERT_ROW', 'REMOVE_ROW', 'INSERT_COLUMN', 'REMOVE_COLUMN'];
+  if (structuralChanges.includes(e.changeType)) {
+    // A structural change was made, so we must invalidate our caches.
+    powerDataCache = null;
+    csHeaderCache = null;
+    console.log('Cache invalidated due to structural sheet change.');
+  }
+} // End function onChange
+
+
 /* function fMenuTagVerification
    Purpose: The local trigger function called by the "Tag Verification" menu item.
    Assumptions: None.
