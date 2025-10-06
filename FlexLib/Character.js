@@ -86,6 +86,7 @@ function fRenameCharacter() {
   nameCell.setRichTextValue(newLink);
 
   // 6. Final success message
+  fEndToast();
   fShowMessage('✅ Success', `"${currentSheetName}" has been successfully renamed to "${finalName}".`);
 
 } // End function fRenameCharacter
@@ -169,6 +170,7 @@ function fDeleteCharacter() {
   });
 
   // 5. Final success message
+  fEndToast();
   const deletedNames = selectedCharacters.map(c => c.name).join(', ');
   fShowMessage('✅ Success', `The following character(s) have been deleted:\n\n${deletedNames}`);
 
@@ -201,6 +203,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 
   if (!characterName) {
     newCharSheet.setTrashed(true);
+    fEndToast();
     fShowMessage('ℹ️ Canceled', 'Character creation has been canceled.');
     return;
   }
@@ -270,6 +273,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
 
   // 5. Final, corrected success message
+  fEndToast();
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
   fShowMessage('Character Created!', successMessage);
 } // End function fCreateNewCharacterSheet

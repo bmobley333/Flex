@@ -1,5 +1,5 @@
 /* global SpreadsheetApp */
-/* exported fPromptWithInput */
+/* exported fPromptWithInput, fShowToast, fEndToast */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -16,16 +16,26 @@ function fShowPlaceholderMessage() {
   fShowMessage('ℹ️ Coming Soon', 'This feature is not yet available. Please check back later for updates.');
 } // End function fShowPlaceholderMessage
 
+/* function fEndToast
+   Purpose: Clears any currently displayed toast message with a brief success indicator.
+   Assumptions: None.
+   Notes: This provides a polished final status update before a modal appears.
+   @returns {void}
+*/
+function fEndToast() {
+  SpreadsheetApp.getActiveSpreadsheet().toast('✅ Complete!', 'Status', 2);
+} // End function fEndToast
+
 /* function fShowToast
    Purpose: Displays a non-blocking toast message in the bottom-right corner.
    Assumptions: None.
-   Notes: Ideal for progress updates that don't require user interaction.
+   Notes: Ideal for progress updates that don't require user interaction. Defaults to a long duration.
    @param {string} message - The message to display.
    @param {string} [title='Flex'] - The optional title for the toast notification.
-   @param {number} [timeout=5] - The number of seconds the toast should be visible.
+   @param {number} [timeout=120] - The number of seconds the toast should be visible.
    @returns {void}
 */
-function fShowToast(message, title = 'Flex', timeout = 5) {
+function fShowToast(message, title = 'Flex', timeout = 120) {
   SpreadsheetApp.getActiveSpreadsheet().toast(message, title, timeout);
 } // End function fShowToast
 

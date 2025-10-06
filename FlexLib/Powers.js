@@ -18,6 +18,7 @@ function fUpdatePowerTablesList() {
   // 1. Get the ID for the master DB spreadsheet
   const dbId = fGetMasterSheetId(g.CURRENT_VERSION, 'DB'); // <-- Corrected Line
   if (!dbId) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the master "DB" spreadsheet ID in the master <Versions> sheet.');
     return;
   }
@@ -26,6 +27,7 @@ function fUpdatePowerTablesList() {
   const sourceSS = SpreadsheetApp.openById(dbId);
   const sourceSheet = sourceSS.getSheetByName('Powers');
   if (!sourceSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Powers> sheet in the master DB file.');
     return;
   }
@@ -43,6 +45,7 @@ function fUpdatePowerTablesList() {
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Choose Powers');
   if (!destSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet in this spreadsheet.');
     return;
   }
@@ -72,6 +75,7 @@ function fUpdatePowerTablesList() {
     destSheet.getRange(destHeaderRow + 1, destCheckboxCol, newRowCount, 1).insertCheckboxes();
   }
 
+  fEndToast();
   fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);
 } // End function fUpdatePowerTablesList
 
@@ -89,6 +93,7 @@ function fFilterPowers() {
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
   const choicesSheet = csSS.getSheetByName('Choose Powers');
   if (!choicesSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet.');
     return;
   }
@@ -106,6 +111,7 @@ function fFilterPowers() {
     .map(row => row[tableNameCol]);
 
   if (selectedTables.length === 0) {
+    fEndToast();
     fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Choose Powers> sheet before filtering.');
     return;
   }
@@ -113,6 +119,7 @@ function fFilterPowers() {
   // 2. Fetch all powers from the player's local DB copy.
   const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
   if (!dbId) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the ID for the "DB" spreadsheet in <MyVersions>.');
     return;
   }
@@ -120,6 +127,7 @@ function fFilterPowers() {
   try {
     fLoadSheetToArray('DB', 'Powers', dbSS);
   } catch (e) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find or load the <Powers> sheet in your DB file.');
     return;
   }
@@ -132,12 +140,14 @@ function fFilterPowers() {
     .filter(row => selectedTables.includes(row[dbColTags.tablename]));
 
   if (filteredPowers.length === 0) {
+    fEndToast();
     fShowMessage('⚠️ No Powers Found', 'No powers matched your selected filters. The dropdowns will be empty.');
   }
 
   // 4. Populate the <PowerDataCache> sheet
   const cacheSheet = csSS.getSheetByName('PowerDataCache');
   if (!cacheSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the <PowerDataCache> sheet.');
     return;
   }
@@ -152,6 +162,7 @@ function fFilterPowers() {
   const filteredPowerList = filteredPowers.map(row => row[dbColTags.dropdown]);
   const gameSheet = csSS.getSheetByName('Game');
   if (!gameSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Game> sheet.');
     return;
   }
@@ -170,6 +181,7 @@ function fFilterPowers() {
     gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
   });
 
+  fEndToast();
   fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);
 } // End function fFilterPowers
 
@@ -185,6 +197,7 @@ function fBuildPowers() {
   // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
   const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
   if (!tablesId) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
     return;
   }
@@ -197,6 +210,7 @@ function fBuildPowers() {
   const destSheet = destSS.getSheetByName(destSheetName);
 
   if (!destSheet) {
+    fEndToast();
     fShowMessage('❌ Error', `Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
     return;
   }
@@ -211,6 +225,7 @@ function fBuildPowers() {
   const columnsToCopy = ['rnd6', 'type', 'subtype', 'tablename', 'source', 'usage', 'action', 'abilityname', 'effect'];
   for (const tag of columnsToCopy) {
     if (destColTags[tag] === undefined) {
+      fEndToast();
       fShowMessage('❌ Error', `The <${destSheetName}> sheet must have a column tagged with "${tag}".`);
       return;
     }
@@ -220,6 +235,7 @@ function fBuildPowers() {
   fShowToast('⏳ Clearing old power data...', 'Build Powers');
   const headerRowIndex = destRowTags.header;
   if (headerRowIndex === undefined) {
+    fEndToast();
     fShowMessage('❌ Error', `The <${destSheetName}> sheet is missing a "Header" row tag.`);
     return;
   }
@@ -292,5 +308,6 @@ function fBuildPowers() {
     destSheet.getRange(headerRowIndex + 2, 2, allPowersData.length, allPowersData[0].length).setValues(allPowersData);
   }
 
+  fEndToast();
   fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allPowersData.length} powers from all sources.`);
 } // End function fBuildPowers

@@ -33,6 +33,7 @@ function fInitialSetup() {
   const sourceSS = SpreadsheetApp.openById(g.MASTER_VER_ID);
   const sourceSheet = sourceSS.getSheetByName('Versions');
   if (!sourceSheet) {
+    fEndToast();
     fShowMessage('❌ Error', 'Could not find the master <Versions> sheet. Please contact the administrator.');
     return;
   }
@@ -42,6 +43,7 @@ function fInitialSetup() {
   const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
 
+  fEndToast();
   fShowMessage('✅ Setup Complete!', 'Your Player\'s Codex is now ready to use.');
 } // End function fInitialSetup
 
