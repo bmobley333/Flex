@@ -207,7 +207,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   if (paperSheet && hideSheet) {
     const hideIndex = hideSheet.getIndex();
     newCharSS.setActiveSheet(paperSheet);
-    newCharSS.moveActiveSheet(hideIndex);
+    newCharSS.moveActiveSheet(hideIndex - 1); // Move to the position BEFORE the hide sheet
   }
   // --- END FIX ---
 
