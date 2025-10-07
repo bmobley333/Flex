@@ -26,13 +26,6 @@ function fClearAllScriptProperties() {
    @returns {void}
 */
 function fTestIdManagement() {
-  // --- SECURITY CHECK ---
-  if (Session.getActiveUser().getEmail() !== g.ADMIN_EMAIL) {
-    fShowMessage('❌ Access Denied', 'This function is for designer use only.');
-    return;
-  }
-  // --- END SECURITY CHECK ---
-
   fGetSheetId(g.CURRENT_VERSION, 'DB'); // This triggers the caching logic
 
   const dbInfo = g.sheetIDs[g.CURRENT_VERSION]['DB'];

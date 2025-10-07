@@ -13,13 +13,6 @@
    @returns {void}
 */
 function fUpdatePowerTablesList() {
-  // --- SECURITY CHECK ---
-  if (Session.getActiveUser().getEmail() !== g.ADMIN_EMAIL) {
-    fShowMessage('❌ Access Denied', 'This function is for designer use only.');
-    return;
-  }
-  // --- END SECURITY CHECK ---
-
   fShowToast('⏳ Updating power table list...', 'Sync Power Tables');
 
   // 1. Get the ID for the master DB spreadsheet
@@ -193,13 +186,6 @@ function fFilterPowers() {
    @returns {void}
 */
 function fBuildPowers() {
-  // --- SECURITY CHECK ---
-  if (Session.getActiveUser().getEmail() !== g.ADMIN_EMAIL) {
-    fShowMessage('❌ Access Denied', 'This function is for designer use only.');
-    return;
-  }
-  // --- END SECURITY CHECK ---
-
   fShowToast('⏳ Initializing power build...', 'Build Powers');
 
   // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
