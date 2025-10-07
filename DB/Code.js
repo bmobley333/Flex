@@ -29,18 +29,12 @@ function onOpen() {
    @returns {void}
 */
 function fActivateMenus() {
-  // This line is the key. Calling any service that needs permissions inside a function
-  // triggered by a menu click will initiate the authorization flow if the user
-  // has not yet approved the script for this document.
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperty(SCRIPT_INITIALIZED_KEY, 'true');
 
-  // Let the user know it worked and what to do next.
-  SpreadsheetApp.getUi().alert(
-    '✅ Success!',
-    'The script has been authorized. Please refresh the page. The full menus will appear automatically from now on.',
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  const title = 'IMPORTANT - Please Refresh Browser Tab';
+  const message = '✅ Success! The script has been authorized.\n\nPlease refresh this browser tab now to load the full custom menus.';
+  SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
 } // End function fActivateMenus
 
 
