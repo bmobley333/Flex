@@ -26,7 +26,6 @@ function fUpdatePowerTablesList() {
 
   const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
 
-  // 2. Open the source DB <Powers> sheet and get all TableName values
   const sourceSheet = sourceSS.getSheetByName('Powers');
   if (!sourceSheet) {
     fEndToast();
@@ -34,7 +33,7 @@ function fUpdatePowerTablesList() {
     return;
   }
 
-  const startRow = rowTags.header + 1; // Data starts after the header
+  const startRow = rowTags.header + 1;
   const tableNameCol = colTags.tablename;
 
   const allTableNames = arr.slice(startRow).map(row => row[tableNameCol]);
@@ -55,23 +54,30 @@ function fUpdatePowerTablesList() {
   const destTableNameCol = destColTags.tablename + 1;
   const destCheckboxCol = destColTags.isactive + 1;
 
+  // --- THIS IS THE FIX ---
   // 4. Adjust rows to match the new list size
+  const dataStartRow = destHeaderRow + 2; // Data starts on the row AFTER the header (Header is 0-indexed, rows are 1-indexed)
   const lastRow = destSheet.getLastRow();
-  const currentRowCount = lastRow - destHeaderRow;
+  const currentRowCount = lastRow - dataStartRow + 1;
   const newRowCount = uniqueTableNames.length;
 
-  if (newRowCount > currentRowCount) {
-    destSheet.insertRowsAfter(lastRow, newRowCount - currentRowCount);
-  } else if (newRowCount < currentRowCount) {
-    destSheet.deleteRows(destHeaderRow + 1 + newRowCount, currentRowCount - newRowCount);
-  }
-
-  // 5. Write the new data and insert checkboxes
   if (newRowCount > 0) {
-    const tableNameData = uniqueTableNames.map(name => [name]); // Convert to 2D array
-    destSheet.getRange(destHeaderRow + 1, destTableNameCol, newRowCount, 1).setValues(tableNameData);
-    destSheet.getRange(destHeaderRow + 1, destCheckboxCol, newRowCount, 1).insertCheckboxes();
+    if (newRowCount > currentRowCount) {
+      destSheet.insertRowsAfter(lastRow, newRowCount - currentRowCount);
+    } else if (newRowCount < currentRowCount) {
+      destSheet.deleteRows(dataStartRow + newRowCount, currentRowCount - newRowCount);
+    }
+
+    // 5. Write the new data and insert checkboxes
+    const tableNameData = uniqueTableNames.map(name => [name]);
+    destSheet.getRange(dataStartRow, destTableNameCol, newRowCount, 1).setValues(tableNameData);
+    destSheet.getRange(dataStartRow, destCheckboxCol, newRowCount, 1).insertCheckboxes();
+  } else if (currentRowCount > 0) {
+    // If there are no new rows but old rows exist, clear them
+    destSheet.deleteRows(dataStartRow, currentRowCount);
   }
+  // --- END FIX ---
+
 
   fEndToast();
   fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);

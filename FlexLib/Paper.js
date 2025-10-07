@@ -31,11 +31,9 @@ function fPrepGameForPaper() {
   const newPaperSheet = sourceSheet.copyTo(ss);
   newPaperSheet.setName('Paper');
 
-  // --- THIS IS THE FIX ---
   // 3. Move the new sheet to the very first position.
   ss.setActiveSheet(newPaperSheet);
   ss.moveActiveSheet(1);
-  // --- END FIX ---
 
   // 4. Read the 'Hide:' notation from the A1 cell.
   const note = newPaperSheet.getRange('A1').getNote();
@@ -50,5 +48,6 @@ function fPrepGameForPaper() {
   rangesToHide.cols.sort((a, b) => b - a).forEach(col => newPaperSheet.deleteColumn(col));
   rangesToHide.rows.sort((a, b) => b - a).forEach(row => newPaperSheet.deleteRow(row));
 
+  newPaperSheet.activate(); // Make it the active sheet.
   fShowMessage('✅ Success', 'The <Paper> sheet has been successfully created and cleaned for printing.');
 } // End function fPrepGameForPaper

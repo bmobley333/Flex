@@ -195,32 +195,41 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   fShowToast('Creating a new character sheet...', 'New Character');
   const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
   const csTemplateFile = DriveApp.getFileById(localCsId);
-  const newCharSheet = csTemplateFile.makeCopy(charactersFolder);
-  const newCharSS = SpreadsheetApp.openById(newCharSheet.getId()); // Open the new sheet to operate on it
+  const newCharFile = csTemplateFile.makeCopy(charactersFolder);
+  const newCharSS = SpreadsheetApp.openById(newCharFile.getId()); // Open the new sheet to operate on it
 
   fEmbedCodexId(newCharSS);
+
+  // --- THIS IS THE FIX ---
+  // Reposition <Paper> sheet for the player
+  const paperSheet = newCharSS.getSheetByName('Paper');
+  const hideSheet = newCharSS.getSheetByName('Hide>');
+  if (paperSheet && hideSheet) {
+    const hideIndex = hideSheet.getIndex();
+    newCharSS.setActiveSheet(paperSheet);
+    newCharSS.moveActiveSheet(hideIndex);
+  }
+  // --- END FIX ---
 
   const characterName = fPromptWithInput('Name Your Character', 'Please enter a name for your new character:');
 
   if (!characterName) {
-    newCharSheet.setTrashed(true);
+    newCharFile.setTrashed(true);
     fEndToast();
     fShowMessage('ℹ️ Canceled', 'Character creation has been canceled.');
     return;
   }
 
   const versionedCharacterName = `v${version} ${characterName}`;
-  newCharSheet.setName(versionedCharacterName);
+  newCharFile.setName(versionedCharacterName);
 
   // 3. Log the new character in the Codex's <Characters> sheet
   const ssKey = 'Codex';
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
 
-  // --- REFACTORED ---
   const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
   const destSheet = codexSS.getSheetByName(sheetName);
-  // --- END REFACTORED ---
 
   const startRow = rowTags.tablestart;
   const endRow = rowTags.tableend;
@@ -230,7 +239,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 
   // Prepare the character data first, as it's needed in both cases.
   const dataToWrite = [];
-  dataToWrite[colTags.csid - 1] = newCharSheet.getId();
+  dataToWrite[colTags.csid - 1] = newCharFile.getId();
   dataToWrite[colTags.version - 1] = version;
   dataToWrite[colTags.checkbox - 1] = true;
   dataToWrite[colTags.charname - 1] = versionedCharacterName; // Use versioned name
@@ -265,7 +274,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   if (colTags.checkbox !== undefined) {
     destSheet.getRange(targetRow, colTags.checkbox + 1).insertCheckboxes();
   }
-  const link = SpreadsheetApp.newRichTextValue().setText(versionedCharacterName).setLinkUrl(newCharSheet.getUrl()).build();
+  const link = SpreadsheetApp.newRichTextValue().setText(versionedCharacterName).setLinkUrl(newCharFile.getUrl()).build();
   destSheet.getRange(targetRow, colTags.charname + 1).setRichTextValue(link);
 
   const rulesId = fGetSheetId(version, 'Rules');
