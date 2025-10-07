@@ -58,6 +58,17 @@ function fMenuPlaceholder() {
   FlexLib.run('ShowPlaceholder');
 } // End function fMenuPlaceholder
 
+
+/* function fMenuTrimSheet
+   Purpose: Local trigger for the "Trim Empty Rows/Cols" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuTrimSheet() {
+  FlexLib.run('TrimSheet');
+} // End function fMenuTrimSheet
+
 /* function fMenuTagVerification
    Purpose: The local trigger function called by the "Tag Verification" menu item.
    Assumptions: None.

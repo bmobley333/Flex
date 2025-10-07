@@ -65,6 +65,7 @@ function fCreateDesignerMenu(context = '') {
   const menu = SpreadsheetApp.getUi().createMenu('Designer');
 
   menu.addItem('Tag Verification', 'fMenuTagVerification');
+  menu.addItem('Trim Empty Rows/Cols', 'fMenuTrimSheet');
   menu.addItem('Show/Hide All', 'fMenuToggleVisibility');
   menu.addSeparator();
 

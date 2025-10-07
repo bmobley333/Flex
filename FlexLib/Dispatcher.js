@@ -18,6 +18,7 @@ function run(command) {
     const commandMap = {
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
+      TrimSheet: fTrimSheet,
       Test: fTestIdManagement,
       CreateLatestCharacter: fCreateLatestCharacter,
       CreateLegacyCharacter: fCreateLegacyCharacter,
@@ -27,7 +28,7 @@ function run(command) {
       BuildPowers: fBuildPowers,
       UpdatePowerTables: fUpdatePowerTablesList,
       FilterPowers: fFilterPowers,
-      PrepGameForPaper: fPrepGameForPaper, // <-- UPDATED
+      PrepGameForPaper: fPrepGameForPaper,
     };
 
     if (commandMap[command]) {

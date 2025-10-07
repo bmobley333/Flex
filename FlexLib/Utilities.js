@@ -6,6 +6,77 @@
 // Start - User Interface Utilities
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fTrimSheet
+   Purpose: Trims all empty rows and columns from the active sheet based on cell content.
+   Assumptions: The user has triggered this from a menu item on an active sheet.
+   Notes: This is a destructive action that removes rows/columns permanently. It ignores formatting and formulas that result in empty strings.
+   @returns {void}
+*/
+function fTrimSheet() {
+  fShowToast('⏳ Analyzing sheet...', 'Trim Sheet');
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const sheetName = sheet.getName();
+
+  let lastRow = sheet.getLastRow();
+  let lastCol = sheet.getLastColumn();
+  const maxRows = sheet.getMaxRows();
+  const maxCols = sheet.getMaxColumns();
+
+  // --- THIS IS THE FIX ---
+  // If the sheet is completely empty, getLastRow/getLastColumn return 0.
+  // In this case, we want to trim down to a 1x1 sheet, not a 0x0 sheet.
+  if (lastRow === 0) {
+    lastRow = 1;
+  }
+  if (lastCol === 0) {
+    lastCol = 1;
+  }
+  // --- END FIX ---
+
+  const rowsToDelete = maxRows - lastRow;
+  const colsToDelete = maxCols - lastCol;
+
+  if (rowsToDelete <= 0 && colsToDelete <= 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Action Needed', 'The active sheet has no empty rows or columns to trim.');
+    return;
+  }
+
+  // Build a confirmation message
+  let confirmMessage = `This will permanently delete empty rows and columns from the sheet "${sheetName}".\n\n`;
+  if (rowsToDelete > 0) {
+    confirmMessage += `➡️ Rows to delete: ${rowsToDelete} (from row ${lastRow + 1} to ${maxRows})\n`;
+  }
+  if (colsToDelete > 0) {
+    const startColA1 = sheet.getRange(1, lastCol + 1).getA1Notation().replace('1', '');
+    const endColA1 = sheet.getRange(1, maxCols).getA1Notation().replace('1', '');
+    confirmMessage += `➡️ Columns to delete: ${colsToDelete} (from column ${startColA1} to ${endColA1})\n`;
+  }
+  confirmMessage += '\n⚠️ IMPORTANT: This action is based on cell CONTENT only and does not consider formatting. It cannot be undone.\n\nTo proceed, type TRIM below.';
+
+  fShowToast('Waiting for your confirmation...', 'Trim Sheet');
+  const confirmationText = fPromptWithInput('Confirm Trim', confirmMessage);
+
+  if (confirmationText === null || confirmationText.toLowerCase().trim() !== 'trim') {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Trim operation canceled.');
+    return;
+  }
+
+  fShowToast('Trimming sheet...', 'Trim Sheet');
+  // Delete columns first to avoid potential errors if both are at max
+  if (colsToDelete > 0) {
+    sheet.deleteColumns(lastCol + 1, colsToDelete);
+  }
+  if (rowsToDelete > 0) {
+    sheet.deleteRows(lastRow + 1, rowsToDelete);
+  }
+
+  fEndToast();
+  fShowMessage('✅ Success', `Successfully trimmed ${rowsToDelete} row(s) and ${colsToDelete} column(s) from "${sheetName}".`);
+} // End function fTrimSheet
+
 /* function fShowMessage
    Purpose: Displays a simple modal pop-up message to the user.
    Assumptions: None.
