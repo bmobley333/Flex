@@ -57,6 +57,9 @@ function fMenuTest() {
    @returns {void}
 */
 function fMenuCreateLatestCharacter() {
+  // This first call to the library will trigger the auth prompt if needed,
+  // and then immediately display a toast once authorization is complete.
+  FlexLib.fShowToast('⏳ Initializing setup...', 'Welcome to Flex');
   FlexLib.run('CreateLatestCharacter');
 } // End function fMenuCreateLatestCharacter
 
@@ -67,6 +70,9 @@ function fMenuCreateLatestCharacter() {
    @returns {void}
 */
 function fMenuCreateLegacyCharacter() {
+  // This first call to the library will trigger the auth prompt if needed,
+  // and then immediately display a toast once authorization is complete.
+  FlexLib.fShowToast('⏳ Initializing setup...', 'Welcome to Flex');
   FlexLib.run('CreateLegacyCharacter');
 } // End function fMenuCreateLegacyCharacter
 

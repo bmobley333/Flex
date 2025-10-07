@@ -13,6 +13,7 @@
    @returns {void}
 */
 function fVerifyActiveSheetTags() {
+  fShowToast('⏳ Verifying all tags...', 'Tag Verification');
   const sheet = SpreadsheetApp.getActiveSheet();
   const data = sheet.getDataRange().getValues();
 
@@ -25,6 +26,7 @@ function fVerifyActiveSheetTags() {
       const locationA1 = sheet.getRange(1, c + 1).getA1Notation();
       if (seenColTags[tag]) {
         const message = `Duplicate column tag found: "${tag}"\n\nOriginal: ${seenColTags[tag]}\nDuplicate: ${locationA1}`;
+        fEndToast();
         fShowMessage('⚠️ Tag Verification Failed', message);
         return;
       }
@@ -40,6 +42,7 @@ function fVerifyActiveSheetTags() {
       const locationA1 = sheet.getRange(r + 1, 1).getA1Notation();
       if (seenRowTags[tag]) {
         const message = `Duplicate row tag found: "${tag}"\n\nOriginal: ${seenRowTags[tag]}\nDuplicate: ${locationA1}`;
+        fEndToast();
         fShowMessage('⚠️ Tag Verification Failed', message);
         return;
       }
@@ -47,5 +50,6 @@ function fVerifyActiveSheetTags() {
     }
   }
 
+  fEndToast();
   fShowMessage('Tag Verification', '✅ Success! All column and row tags are unique.');
 } // End function fVerifyActiveSheetTags

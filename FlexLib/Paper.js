@@ -13,11 +13,13 @@
    @returns {void}
 */
 function fPrepGameForPaper() {
+  fShowToast('⏳ Preparing <Paper> sheet...', 'Print Prep');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = ss.getSheetByName('Game');
   const oldPaperSheet = ss.getSheetByName('Paper');
 
   if (!sourceSheet) {
+    fEndToast();
     fShowMessage('❌ Error', "A sheet named 'Game' must exist to run this function.");
     return;
   }
@@ -38,6 +40,7 @@ function fPrepGameForPaper() {
   // 4. Read the 'Hide:' notation from the A1 cell.
   const note = newPaperSheet.getRange('A1').getNote();
   if (!note.includes('Hide: ')) {
+    fEndToast();
     fShowMessage('✅ Success', 'The <Paper> sheet has been created, but no "Hide:" notation was found to remove designer elements.');
     return;
   }
@@ -45,9 +48,11 @@ function fPrepGameForPaper() {
   const rangesToHide = fParseA1Notation(hideString);
 
   // 5. Delete the specified columns and rows, starting from the end to avoid shifting indices.
+  fShowToast('Removing designer elements...', 'Print Prep');
   rangesToHide.cols.sort((a, b) => b - a).forEach(col => newPaperSheet.deleteColumn(col));
   rangesToHide.rows.sort((a, b) => b - a).forEach(row => newPaperSheet.deleteRow(row));
 
   newPaperSheet.activate(); // Make it the active sheet.
+  fEndToast();
   fShowMessage('✅ Success', 'The <Paper> sheet has been successfully created and cleaned for printing.');
 } // End function fPrepGameForPaper

@@ -13,6 +13,7 @@
    @returns {void}
 */
 function fRenameCharacter() {
+  fShowToast('⏳ Initializing rename...', 'Rename Character');
   const ssKey = 'Codex';
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
@@ -42,10 +43,12 @@ function fRenameCharacter() {
 
   // 2. Validate the selection
   if (selectedCharacters.length === 0) {
+    fEndToast();
     fShowMessage('ℹ️ No Selection', 'Please check the box next to the character you wish to rename.');
     return;
   }
   if (selectedCharacters.length > 1) {
+    fEndToast();
     fShowMessage('❌ Error', 'Multiple characters selected. Please select only one character to rename.');
     return;
   }
@@ -53,6 +56,7 @@ function fRenameCharacter() {
   const character = selectedCharacters[0];
 
   // 3. Get current names and prompt for a new one
+  fShowToast('Waiting for your input...', 'Rename Character');
   const file = DriveApp.getFileById(character.id);
   const currentFileName = file.getName();
   const currentSheetName = character.name;
@@ -66,6 +70,7 @@ function fRenameCharacter() {
   const newBaseName = fPromptWithInput('Rename Character', promptMessage);
 
   if (!newBaseName) {
+    fEndToast();
     fShowMessage('ℹ️ Canceled', 'Rename operation canceled.');
     return;
   }
@@ -86,7 +91,6 @@ function fRenameCharacter() {
   // 6. Final success message
   fEndToast();
   fShowMessage('✅ Success', `"${currentSheetName}" has been successfully renamed to "${finalName}".`);
-
 } // End function fRenameCharacter
 
 /* function fDeleteCharacter
@@ -96,6 +100,7 @@ function fRenameCharacter() {
    @returns {void}
 */
 function fDeleteCharacter() {
+  fShowToast('⏳ Initializing delete...', 'Delete Character(s)');
   const ssKey = 'Codex';
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
@@ -112,6 +117,7 @@ function fDeleteCharacter() {
   const csidCol = colTags.csid;
 
   if (checkboxCol === undefined || charNameCol === undefined || csidCol === undefined) {
+    fEndToast();
     fShowMessage('❌ Error', 'The <Characters> sheet is missing a "CheckBox", "CharName", or "CSID" column tag.');
     return;
   }
@@ -131,13 +137,18 @@ function fDeleteCharacter() {
 
   // 2. Validate the selection and get user confirmation
   if (selectedCharacters.length === 0) {
+    fEndToast();
     fShowMessage('ℹ️ No Selection', 'Please check the box next to the character(s) you wish to delete.');
     return;
-  } else if (selectedCharacters.length === 1) {
+  }
+
+  fShowToast('Waiting for your confirmation...', 'Delete Character(s)');
+  if (selectedCharacters.length === 1) {
     const charName = selectedCharacters[0].name;
     const promptMessage = `⚠️ Are you sure you wish to permanently DELETE the character "${charName}"?\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE below.`;
     const confirmationText = fPromptWithInput('Confirm Deletion', promptMessage);
     if (confirmationText === null || confirmationText.toLowerCase().trim() !== 'delete') {
+      fEndToast();
       fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
       return;
     }
@@ -146,6 +157,7 @@ function fDeleteCharacter() {
     const promptMessage = `⚠️ Are you sure you wish to permanently DELETE the following ${selectedCharacters.length} characters?\n\n${names}\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE ALL below.`;
     const confirmationText = fPromptWithInput('Confirm Bulk Deletion', promptMessage);
     if (confirmationText === null || confirmationText.toLowerCase().trim() !== 'delete all') {
+      fEndToast();
       fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
       return;
     }
@@ -171,7 +183,6 @@ function fDeleteCharacter() {
   fEndToast();
   const deletedNames = selectedCharacters.map(c => c.name).join(', ');
   fShowMessage('✅ Success', `The following character(s) have been deleted:\n\n${deletedNames}`);
-
 } // End function fDeleteCharacter
 
 /* function fCreateNewCharacterSheet
@@ -395,7 +406,9 @@ function fCreateLegacyCharacter() {
    @returns {void}
 */
 function fCreateCharacterFromVersion(selectedVersion) {
+  fShowToast('⏳ Starting new character process...', 'New Character');
   if (!selectedVersion) {
+    fEndToast();
     fShowMessage('❌ Error', 'No version was provided for character creation.');
     return;
   }
@@ -403,7 +416,6 @@ function fCreateCharacterFromVersion(selectedVersion) {
   // Create the new character sheet and log it.
   const parentFolder = fGetOrCreateFolder('MetaScape Flex');
   fCreateNewCharacterSheet(selectedVersion, parentFolder);
-
 } // End function fCreateCharacterFromVersion
 
 

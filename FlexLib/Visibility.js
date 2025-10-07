@@ -13,6 +13,7 @@
    @returns {void}
 */
 function fToggleDesignerVisibility() {
+  fShowToast('⏳ Toggling visibility...', 'Show/Hide All');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allSheets = ss.getSheets();
   const hideMarkerSheet = ss.getSheetByName('Hide>');
@@ -38,6 +39,7 @@ function fToggleDesignerVisibility() {
   }
 
   if (shouldHide === undefined) {
+    fEndToast();
     fShowMessage('ℹ️ No Action', 'No designer elements with "Hide:" notes were found to toggle.');
     return;
   }
@@ -48,16 +50,18 @@ function fToggleDesignerVisibility() {
 
   if (shouldHide) {
     fHideAllElements(allSheets, hideMarkerIndex);
+    fEndToast();
     fShowMessage('✅ Success', 'All designer elements have been hidden.');
   } else {
     fUnhideAllElements(allSheets, hideMarkerIndex);
+    fEndToast();
     fShowMessage('✅ Success', 'All designer elements have been shown.');
   }
 } // End function fToggleDesignerVisibility
 
 /* function fHideAllElements
    Purpose: Hides all designated designer elements.
-   Assumptions: Called by function fToggleDesignerVisibility.
+   Assumptions: Called by  fToggleDesignerVisibility.
    Notes: Iterates through sheets to hide them and their specified rows/cols.
    @param {GoogleAppsScript.Spreadsheet.Sheet[]} allSheets - An array of all sheets in the spreadsheet.
    @param {number} hideMarkerIndex - The 1-based index of the "Hide>" sheet, or -1 if not found.
