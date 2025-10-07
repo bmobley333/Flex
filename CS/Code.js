@@ -10,7 +10,7 @@ const SCRIPT_INITIALIZED_KEY = 'SCRIPT_INITIALIZED';
 /* function onOpen
    Purpose: Simple trigger that runs automatically when the spreadsheet is opened.
    Assumptions: None.
-   Notes: Builds the full menu if authorized, otherwise provides an activation option.
+   Notes: Builds menus based on authorization status and user identity (player vs. designer).
    @returns {void}
 */
 function onOpen() {
@@ -18,7 +18,13 @@ function onOpen() {
   const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
 
   if (isInitialized) {
-    FlexLib.fCreateGenericMenus('CS');
+    // Always create the main player menu.
+    FlexLib.fCreateFlexMenu();
+
+    // Only show the Designer menu if the user is the admin.
+    if (Session.getActiveUser().getEmail() === FlexLib.g.ADMIN_EMAIL) {
+      FlexLib.fCreateDesignerMenu('CS');
+    }
   } else {
     SpreadsheetApp.getUi()
       .createMenu('*** Flex ***')

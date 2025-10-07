@@ -3,12 +3,16 @@
 /* function onOpen
    Purpose: Simple trigger that runs automatically when the spreadsheet is opened.
    Assumptions: None.
-   Notes: Its sole job is to call the library to build the custom menus.
+   Notes: Its sole job is to call the library to build the custom menus. It only shows the Designer menu for the admin.
    @returns {void}
 */
 function onOpen() {
   FlexLib.fCreateCodexMenu();
-  FlexLib.fCreateDesignerMenu('Codex');
+
+  // Only show the Designer menu if the user is the admin.
+  if (Session.getActiveUser().getEmail() === FlexLib.g.ADMIN_EMAIL) {
+    FlexLib.fCreateDesignerMenu('Codex');
+  }
 } // End function onOpen
 
 /* function fMenuTagVerification
