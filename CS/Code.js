@@ -139,6 +139,16 @@ function onEdit(e) {
   sheet.getRange(row, csHeader.indexOf(csTargetTags.effect) + 1).setValue(powerData.effect);
 } // End function onEdit
 
+/* function buttonFilterPowers
+   Purpose: Local trigger for a button, mimics the "Filter Powers" menu item.
+   Assumptions: None.
+   Notes: Assign this function name to a button in the sheet to trigger the FilterPowers command.
+   @returns {void}
+*/
+function buttonFilterPowers() {
+  FlexLib.run('FilterPowers');
+} // End function buttonFilterPowers
+
 
 /* function onChange
    Purpose: An installable trigger that invalidates session caches when the sheet's structure changes.
