@@ -1,5 +1,5 @@
 /* global g */
-/* exported g */
+/* exported g, getGlobals */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -30,3 +30,13 @@ const g = {
   DB: {},
   Tbls: {},
 }; // End const g
+
+/* function getGlobals
+   Purpose: A simple getter to make the global constants object (g) accessible to scripts that use FlexLib.
+   Assumptions: None.
+   Notes: Libraries do not expose global variables directly, so a getter function is required.
+   @returns {object} The global g object.
+*/
+function getGlobals() {
+  return g;
+} // End function getGlobals

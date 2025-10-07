@@ -74,6 +74,7 @@ function fCreateDesignerMenu(context = '') {
   }
   if (context === 'CS') {
     menu.addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables');
+    menu.addItem('Copy CS <Game> to <Paper>', 'fMenuPrepGameForPaper'); // <-- RENAMED
   }
 
   menu.addSeparator();

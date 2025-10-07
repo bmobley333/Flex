@@ -21,8 +21,11 @@ function onOpen() {
     // Always create the main player menu.
     FlexLib.fCreateFlexMenu();
 
+    // Get the globals object from the library.
+    const g = FlexLib.getGlobals();
+
     // Only show the Designer menu if the user is the admin.
-    if (Session.getActiveUser().getEmail() === FlexLib.g.ADMIN_EMAIL) {
+    if (Session.getActiveUser().getEmail() === g.ADMIN_EMAIL) {
       FlexLib.fCreateDesignerMenu('CS');
     }
   } else {
@@ -204,3 +207,13 @@ function fMenuUpdatePowerTables() {
 function fMenuFilterPowers() {
   FlexLib.run('FilterPowers');
 } // End function fMenuFilterPowers
+
+/* function fMenuPrepGameForPaper
+   Purpose: Local trigger for the "Copy CS <Game> to <Paper>" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuPrepGameForPaper() {
+  FlexLib.run('PrepGameForPaper');
+} // End function fMenuPrepGameForPaper

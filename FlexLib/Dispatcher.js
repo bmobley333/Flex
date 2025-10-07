@@ -27,6 +27,7 @@ function run(command) {
       BuildPowers: fBuildPowers,
       UpdatePowerTables: fUpdatePowerTablesList,
       FilterPowers: fFilterPowers,
+      PrepGameForPaper: fPrepGameForPaper, // <-- UPDATED
     };
 
     if (commandMap[command]) {

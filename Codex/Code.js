@@ -9,8 +9,11 @@
 function onOpen() {
   FlexLib.fCreateCodexMenu();
 
+  // Get the globals object from the library.
+  const g = FlexLib.getGlobals();
+
   // Only show the Designer menu if the user is the admin.
-  if (Session.getActiveUser().getEmail() === FlexLib.g.ADMIN_EMAIL) {
+  if (Session.getActiveUser().getEmail() === g.ADMIN_EMAIL) {
     FlexLib.fCreateDesignerMenu('Codex');
   }
 } // End function onOpen
