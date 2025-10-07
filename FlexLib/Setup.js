@@ -44,7 +44,8 @@ function fInitialSetup() {
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
 
   fEndToast();
-  fShowMessage('✅ Setup Complete!', 'Your Player\'s Codex is now ready to use.');
+  const successMessage = 'Your Player\'s Codex is now ready to use.\n\nPlease bookmark this Player\'s Codex file (and you can also find it in your Google Drive under the "MetaScape Flex" folder).';
+  fShowMessage('✅ Setup Complete!', successMessage);
 } // End function fInitialSetup
 
 
