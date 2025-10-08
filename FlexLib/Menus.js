@@ -59,6 +59,20 @@ function fCreateGenericMenus(context) {
   fCreateDesignerMenu(context);
 } // End function fCreateGenericMenus
 
+/* function fCreateCustMenu
+   Purpose: Creates the main custom menu for the Custom Abilities spreadsheet.
+   Assumptions: This is called from an onOpen trigger in a Cust sheet.
+   Notes: Provides the sharing functionality to the content creator.
+   @returns {void}
+*/
+function fCreateCustMenu() {
+  SpreadsheetApp.getUi()
+    .createMenu('*** Flex ***')
+    .addItem('Share My Abilities...', 'fMenuShareMyAbilities')
+    .addToUi();
+} // End function fCreateCustMenu
+
+
 /* function fCreateDesignerMenu
    Purpose: Creates the generic "Designer" custom menu, customized by context.
    Assumptions: This is called from an onOpen trigger.

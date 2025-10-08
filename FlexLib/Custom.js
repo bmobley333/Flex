@@ -1,11 +1,67 @@
-/* global g, fGetSheetData, SpreadsheetApp */
-/* exported fAddOwnCustomAbilitiesSource */
+/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session */
+/* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Custom Abilities Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fShareMyAbilities
+   Purpose: Orchestrates the workflow for a player to share their custom abilities sheet with another player.
+   Assumptions: Run from the menu in a player's "Cust" sheet.
+   Notes: Grants viewer permission and sends a notification email.
+   @returns {void}
+*/
+function fShareMyAbilities() {
+  fShowToast('⏳ Initializing share...', 'Share My Abilities');
+
+  const ui = SpreadsheetApp.getUi();
+  const activeSS = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetId = activeSS.getId();
+  const sheetName = activeSS.getName();
+  const currentUser = Session.getActiveUser().getEmail();
+
+  // 1. Prompt for the recipient's email address
+  const promptMessage = `Your Custom Abilities ID is:\n${sheetId}\n\nEnter the email address of the player you want to share this file with:`;
+  const email = fPromptWithInput('Share My Abilities', promptMessage);
+
+  if (!email) {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Sharing was canceled.');
+    return;
+  }
+
+  // 2. Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    fEndToast();
+    fShowMessage('❌ Invalid Email', 'The email address you entered does not appear to be valid. Please try again.');
+    return;
+  }
+
+  // 3. Grant permissions and send email
+  try {
+    fShowToast(`Sharing with ${email}...`, 'Share My Abilities');
+    const file = DriveApp.getFileById(sheetId);
+    file.addViewer(email); // <-- CHANGED to addViewer
+
+    fShowToast('Sending notification email...', 'Share My Abilities');
+    const subject = `Flex TTRPG: A custom abilities file has been shared with you!`;
+    // --- NEW EMAIL BODY ---
+    const body = `${currentUser} has shared a set of Flex Custom Abilities with you named "${sheetName}".\n\n` +
+      `Please copy the ID string below EXACTLY as it appears and then on your Player's Codex, use the Flex menu's "Manage Custom Sources" and "Add New Source..." to paste this ID into.\n\n` +
+      `ID String:\n${sheetId}`;
+    MailApp.sendEmail(email, subject, body);
+
+    fEndToast();
+    fShowMessage('✅ Success!', `Your custom abilities file has been successfully shared with ${email}.`);
+  } catch (e) {
+    console.error(`Sharing failed. Error: ${e}`);
+    fEndToast();
+    fShowMessage('❌ Error', 'An error occurred while trying to share the file. Please ensure you are the owner of this file and try again.');
+  }
+} // End function fShareMyAbilities
 
 /* function fAddNewCustomSource
    Purpose: The master workflow for adding a new, external custom ability source to the Codex.

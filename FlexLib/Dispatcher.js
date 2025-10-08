@@ -16,7 +16,8 @@
 function run(command) {
   try {
     const commandMap = {
-      SyncPowerChoices: fUpdatePowerTablesList, // <-- RENAMED
+      ShareMyAbilities: fShareMyAbilities, // <-- ADDED
+      SyncPowerChoices: fUpdatePowerTablesList,
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
