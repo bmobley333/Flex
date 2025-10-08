@@ -19,6 +19,8 @@ function fCreateCodexMenu() {
     .addItem('Older Legacy Version', 'fMenuCreateLegacyCharacter');
 
   const customSourcesMenu = SpreadsheetApp.getUi().createMenu('Manage Custom Sources')
+    .addItem('Create New Custom Ability List...', 'fMenuCreateCustomList') // <-- ADDED
+    .addSeparator() // <-- ADDED
     .addItem('Add New Source...', 'fMenuAddNewCustomSource');
 
   SpreadsheetApp.getUi()

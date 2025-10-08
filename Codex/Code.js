@@ -127,6 +127,15 @@ function fMenuRenameCharacter() {
   FlexLib.run('RenameCharacter');
 } // End function fMenuRenameCharacter
 
+/* function fMenuCreateCustomList
+   Purpose: Local trigger for the "Create New Custom Ability List..." menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuCreateCustomList() {
+  FlexLib.run('CreateCustomList');
+} // End function fMenuCreateCustomList
 
 /* function fMenuAddNewCustomSource
    Purpose: Local trigger for the "Add New Source..." menu item.

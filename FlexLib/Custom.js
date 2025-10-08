@@ -1,10 +1,85 @@
-/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session, Drive */
-/* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource */
+/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session, Drive, fGetSheetId, fGetOrCreateFolder */
+/* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource, fCreateNewCustomList */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Custom Abilities Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* function fCreateNewCustomList
+   Purpose: Creates a new, named custom ability list from the master template and logs it in the Codex.
+   Assumptions: Run from the Codex menu.
+   Notes: This is the core workflow for creating a new set of shareable, custom abilities.
+   @returns {void}
+*/
+function fCreateNewCustomList() {
+  fShowToast('⏳ Initializing...', 'New Custom List');
+
+  // 1. Get the local Cust template ID
+  const localCustId = fGetSheetId(g.CURRENT_VERSION, 'Cust');
+  if (!localCustId) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find the local master Custom Abilities template. Please try running the initial setup again.');
+    return;
+  }
+
+  // 2. Get the destination folder and copy the template
+  fShowToast('Copying template...', 'New Custom List');
+  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
+  const customAbilitiesFolder = fGetOrCreateFolder('Custom Abilities', parentFolder);
+  const custTemplateFile = DriveApp.getFileById(localCustId);
+  const newCustFile = custTemplateFile.makeCopy(customAbilitiesFolder);
+
+  // 3. Prompt for a name
+  const listName = fPromptWithInput('Name Your List', 'Please enter a name for your new custom ability list (e.g., "My Homebrew Powers"):');
+  if (!listName) {
+    newCustFile.setTrashed(true); // Clean up if the user cancels
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Creation of new custom ability list was canceled.');
+    return;
+  }
+  newCustFile.setName(listName);
+
+  // 4. Log the new list in the Codex's <CustomSources> sheet
+  fShowToast('Logging new list in your Codex...', 'New Custom List');
+  const ssKey = 'Codex';
+  const sheetName = 'CustomSources';
+  const codexSS = fGetCodexSpreadsheet();
+  const destSheet = codexSS.getSheetByName(sheetName);
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
+  const headerRow = rowTags.header;
+  const lastRow = destSheet.getLastRow();
+  let targetRow;
+
+  const dataToWrite = [];
+  dataToWrite[colTags.sheetid - 1] = newCustFile.getId();
+  dataToWrite[colTags.sourcename - 1] = listName;
+  dataToWrite[colTags.owner - 1] = Session.getActiveUser().getEmail();
+
+  const firstDataRowIndex = headerRow + 1;
+  const templateRow = firstDataRowIndex + 1;
+  const sourceNameCol = colTags.sourcename;
+
+  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][sourceNameCol]) {
+    targetRow = templateRow;
+  } else {
+    targetRow = lastRow + 1;
+    destSheet.insertRowsAfter(lastRow, 1);
+    const formatSourceRange = destSheet.getRange(templateRow, 1, 1, destSheet.getMaxColumns());
+    const formatDestRange = destSheet.getRange(targetRow, 1, 1, destSheet.getMaxColumns());
+    formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
+  }
+
+  const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
+  targetRange.setValues([dataToWrite]);
+
+  // Create a hyperlink for the new entry
+  const link = SpreadsheetApp.newRichTextValue().setText(listName).setLinkUrl(newCustFile.getUrl()).build();
+  destSheet.getRange(targetRow, colTags.sourcename + 1).setRichTextValue(link);
+
+  fEndToast();
+  fShowMessage('✅ Success', `Your new custom ability list "${listName}" has been created and added to your Codex.`);
+} // End function fCreateNewCustomList
 
 
 /* function fShareMyAbilities

@@ -21,6 +21,7 @@ function fInitialSetup() {
   const parentFolder = fGetOrCreateFolder('MetaScape Flex');
   fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fGetOrCreateFolder('Characters', parentFolder);
+  fGetOrCreateFolder('Custom Abilities', parentFolder);
 
   // 2. Move and Rename this Codex
   fShowToast('Organizing your Codex file...', '⚙️ Setup');
@@ -43,10 +44,7 @@ function fInitialSetup() {
   const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
 
-  // 5. Add the player's own custom abilities as the first source
-  fShowToast('Configuring custom abilities...', '⚙️ Setup');
-  fAddOwnCustomAbilitiesSource(); // <-- ADDED
-
+  // 5. The setup is now complete. Custom abilities are created on-demand by the user.
   fEndToast();
   const successMessage = 'Your Player\'s Codex is now ready to use.\n\nPlease bookmark this Player\'s Codex file (and you can also find it in your Google Drive under the "MetaScape Flex" folder).';
   fShowMessage('✅ Setup Complete!', successMessage);
