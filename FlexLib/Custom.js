@@ -1,4 +1,4 @@
-/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session */
+/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session, Drive */
 /* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -9,17 +9,15 @@
 
 /* function fShareMyAbilities
    Purpose: Orchestrates the workflow for a player to share their custom abilities sheet with another player.
-   Assumptions: Run from the menu in a player's "Cust" sheet.
-   Notes: Grants viewer permission and sends a notification email.
+   Assumptions: Run from the menu in a player's "Cust" sheet. The advanced Drive API service must be enabled.
+   Notes: Grants viewer permission without sending a Google Drive notification and sends a custom notification email.
    @returns {void}
 */
 function fShareMyAbilities() {
   fShowToast('⏳ Initializing share...', 'Share My Abilities');
 
-  const ui = SpreadsheetApp.getUi();
   const activeSS = SpreadsheetApp.getActiveSpreadsheet();
   const sheetId = activeSS.getId();
-  const sheetName = activeSS.getName();
   const currentUser = Session.getActiveUser().getEmail();
 
   // 1. Prompt for the recipient's email address
@@ -40,17 +38,25 @@ function fShareMyAbilities() {
     return;
   }
 
-  // 3. Grant permissions and send email
+  // 3. Grant permissions using the advanced Drive API and send our custom email
   try {
     fShowToast(`Sharing with ${email}...`, 'Share My Abilities');
-    const file = DriveApp.getFileById(sheetId);
-    file.addViewer(email); // <-- CHANGED to addViewer
+
+    // --- CORRECTED LOGIC ---
+    const permissionResource = {
+      role: 'reader',
+      type: 'user',
+      emailAddress: email, // <-- THIS IS THE FIX
+    };
+    Drive.Permissions.create(permissionResource, sheetId, {
+      sendNotificationEmail: false,
+    });
+    // --- END CORRECTION ---
 
     fShowToast('Sending notification email...', 'Share My Abilities');
     const subject = `Flex TTRPG: A custom abilities file has been shared with you!`;
-    // --- NEW EMAIL BODY ---
-    const body = `${currentUser} has shared a set of Flex Custom Abilities with you named "${sheetName}".\n\n` +
-      `Please copy the ID string below EXACTLY as it appears and then on your Player's Codex, use the Flex menu's "Manage Custom Sources" and "Add New Source..." to paste this ID into.\n\n` +
+    const body = `The player ${currentUser} has shared a set of Flex Custom Abilities with you.\n\n` +
+      `Please copy the ID string below EXACTLY as it appears and paste it into your Player's Codex's text box when you run the Flex menu's "Manage Custom Sources" and "Add New Source...".\n\n` +
       `ID String:\n${sheetId}`;
     MailApp.sendEmail(email, subject, body);
 
@@ -59,7 +65,8 @@ function fShareMyAbilities() {
   } catch (e) {
     console.error(`Sharing failed. Error: ${e}`);
     fEndToast();
-    fShowMessage('❌ Error', 'An error occurred while trying to share the file. Please ensure you are the owner of this file and try again.');
+    // Restore the user-friendly error message
+    fShowMessage('❌ Error', 'An error occurred while trying to share the file. This can happen if you are not the owner of this file. Please try again.');
   }
 } // End function fShareMyAbilities
 
