@@ -311,22 +311,23 @@ function fCreateLatestCharacter() {
   const sheetName = 'MyVersions';
   const codexSS = fGetCodexSpreadsheet();
 
-  // --- REFACTORED ---
   let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
-  // --- END REFACTORED ---
+  const headerRow = rowTags.header;
 
-  if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
+  // 1. If the table is empty (or sheet is new), run the initial setup.
+  if (headerRow === undefined || arr.length <= headerRow + 1 || !arr[headerRow + 1][colTags.ssabbr]) {
     fInitialSetup();
     // After setup, we MUST reload the sheet data to get the new information
-    let reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
+    const reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
     arr = reloadedData.arr;
     rowTags = reloadedData.rowTags;
     colTags = reloadedData.colTags;
   }
 
-  // 2. Find the highest version number that has a CS file
-  const versionsWithCS = arr.slice(rowTags.tablestart, rowTags.tableend + 1)
-    .filter(row => row[colTags.ssabbr] === 'CS')
+  // 2. Find the highest version number that has a CS file, using the new Header-based logic.
+  const versionsWithCS = arr
+    .slice(rowTags.header + 1)
+    .filter(row => row.length > colTags.ssabbr && row[colTags.ssabbr] === 'CS')
     .map(row => parseFloat(row[colTags.version]));
 
   if (versionsWithCS.length === 0) {
@@ -350,22 +351,23 @@ function fCreateLegacyCharacter() {
   const sheetName = 'MyVersions';
   const codexSS = fGetCodexSpreadsheet();
 
-  // --- REFACTORED ---
   let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
-  // --- END REFACTORED ---
+  const headerRow = rowTags.header;
 
-  if (rowTags.tablestart === rowTags.tableend && (!arr[rowTags.tablestart] || arr[rowTags.tablestart][colTags.ssabbr] === '')) {
+  // 1. If the table is empty (or sheet is new), run the initial setup.
+  if (headerRow === undefined || arr.length <= headerRow + 1 || !arr[headerRow + 1][colTags.ssabbr]) {
     fInitialSetup();
     // After setup, we MUST reload the sheet data to get the new information
-    let reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
+    const reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
     arr = reloadedData.arr;
     rowTags = reloadedData.rowTags;
     colTags = reloadedData.colTags;
   }
 
-  // 2. Find and prompt for legacy versions
-  const versionsWithCS = arr.slice(rowTags.tablestart, rowTags.tableend + 1)
-    .filter(row => row[colTags.ssabbr] === 'CS')
+  // 2. Find and prompt for legacy versions, using the new Header-based logic.
+  const versionsWithCS = arr
+    .slice(rowTags.header + 1)
+    .filter(row => row.length > colTags.ssabbr && row[colTags.ssabbr] === 'CS')
     .map(row => parseFloat(row[colTags.version]));
 
   if (versionsWithCS.length === 0) {

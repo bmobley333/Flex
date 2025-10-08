@@ -66,48 +66,50 @@ function fGetSheetId(version, ssAbbr) {
 
 /* function fLoadSheetIDsFromMyVersions
    Purpose: Reads the Codex's <MyVersions> sheet to build the cache of local file IDs.
-   Assumptions: The <MyVersions> sheet is tagged with 'tablestart', 'tableend', 'version', 'ssabbr', and 'ssid'.
+   Assumptions: The <MyVersions> sheet is tagged with 'Header', 'version', 'ssabbr', and 'ssid'.
    Notes: This powers the cache with the player's own file data.
    @returns {void}
 */
 function fLoadSheetIDsFromMyVersions() {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
-  const codexSS = fGetCodexSpreadsheet(); // <-- THIS IS THE FIX
+  const codexSS = fGetCodexSpreadsheet();
 
-  // We now explicitly load from the Codex spreadsheet object.
   fLoadSheetToArray(ssKey, sheetName, codexSS);
   fBuildTagMaps(ssKey, sheetName);
 
   const { arr, rowTags, colTags } = g[ssKey][sheetName];
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
+  const headerRow = rowTags.header;
 
-  if (typeof startRow === 'undefined' || typeof endRow === 'undefined') {
-    throw new Error(`Could not find 'tablestart' or 'tableend' row tags in the "${sheetName}" sheet.`);
+  if (headerRow === undefined) {
+    throw new Error(`Could not find a "Header" tag in the <${sheetName}> sheet.`);
   }
+  const startRow = headerRow + 1;
 
   // Clear the in-memory cache before reloading
   g.sheetIDs = {};
 
-  for (let r = startRow; r <= endRow; r++) {
-    const version = String(arr[r][colTags.version]);
-    const abbr = arr[r][colTags.ssabbr];
-    const id = arr[r][colTags.ssid];
-    const fullName = arr[r][colTags.ssfullname];
+  for (let r = startRow; r < arr.length; r++) {
+    // Ensure the row has data before trying to process it
+    if (arr[r] && arr[r][colTags.ssabbr]) {
+      const version = String(arr[r][colTags.version]);
+      const abbr = arr[r][colTags.ssabbr];
+      const id = arr[r][colTags.ssid];
+      const fullName = arr[r][colTags.ssfullname];
 
-    if (!version || !abbr || !id) continue; // Skip incomplete rows
+      if (!version || !abbr || !id) continue; // Skip incomplete rows
 
-    if (!g.sheetIDs[version]) {
-      g.sheetIDs[version] = {};
+      if (!g.sheetIDs[version]) {
+        g.sheetIDs[version] = {};
+      }
+
+      g.sheetIDs[version][abbr] = {
+        version: version,
+        ssabbr: abbr,
+        ssid: id,
+        ssfullname: fullName,
+      };
     }
-
-    g.sheetIDs[version][abbr] = {
-      version: version,
-      ssabbr: abbr,
-      ssid: id,
-      ssfullname: fullName,
-    };
   }
 } // End function fLoadSheetIDsFromMyVersions
 

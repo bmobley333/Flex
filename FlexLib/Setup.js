@@ -1,5 +1,5 @@
-/* global fShowMessage, DriveApp, SpreadsheetApp, g, fNormalizeTags, fLoadSheetToArray, fBuildTagMaps */
-/* exported fInitialSetup */
+/* global fShowMessage, DriveApp, SpreadsheetApp, g, fNormalizeTags, fLoadSheetToArray, fBuildTagMaps, MimeType, fEmbedCodexId */
+/* exported fLogLocalFileCopy */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -64,22 +64,26 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
   sourceData[0].forEach((tag, c) => fNormalizeTags(tag).forEach(t => (sourceColTags[t] = c)));
   sourceData.forEach((row, r) => fNormalizeTags(row[0]).forEach(t => (sourceRowTags[t] = r)));
 
-  const startRow = sourceRowTags.tablestart;
-  const endRow = sourceRowTags.tableend;
+  // --- NEW LOGIC ---
+  // Use the 'Header' tag to find the start of the data.
+  const headerRow = sourceRowTags.header;
+  if (headerRow === undefined) {
+    throw new Error('Could not find "Header" row tag in the master <Versions> sheet.');
+  }
+  const startRow = headerRow + 1;
 
   // 2. Define the columns we need to extract from the source sheet
   const versionCol = sourceColTags.version;
   const releaseDateCol = sourceColTags.releasedate;
-  const playerNeedsCol = sourceColTags.playerneeds; // Updated from ismaster
+  const playerNeedsCol = sourceColTags.playerneeds;
   const fullNameCol = sourceColTags.ssfullname;
   const abbrCol = sourceColTags.ssabbr;
   const idCol = sourceColTags.ssid;
 
   // 3. Loop through each row of the source data table and process it
-  for (let r = startRow; r <= endRow; r++) {
+  for (let r = startRow; r < sourceData.length; r++) {
     const rowData = sourceData[r];
 
-    // --- NEW LOGIC ---
     // Only copy the file if the 'PlayerNeeds' column is TRUE
     if (rowData[playerNeedsCol] !== true) {
       continue; // Skip this file
@@ -96,7 +100,6 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
     const fileName = `v${version} MASTER_${ssAbbr} - DO NOT DELETE`;
     const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
 
-    // --- THIS IS THE FIX ---
     // Only try to embed the Codex ID if the new file is a spreadsheet.
     if (newFile.getMimeType() === MimeType.GOOGLE_SHEETS) {
       const newSS = SpreadsheetApp.openById(newFile.getId());
@@ -122,57 +125,36 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
 /* function fLogLocalFileCopy
    Purpose: Writes the details of a newly created local master file into the player's <MyVersions> sheet.
    Assumptions: The logData object contains all necessary keys.
-   Notes: Contains the robust TableStart/TableEnd logic for a growing table.
+   Notes: Uses a "Header"-based approach to find the next empty row.
    @param {object} logData - An object containing the data for the new file.
    @returns {void}
 */
 function fLogLocalFileCopy(logData) {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
-  // Ensure the latest sheet data is loaded before we operate on it
-  fLoadSheetToArray(ssKey, sheetName);
-  fBuildTagMaps(ssKey, sheetName);
+  // Force a refresh to ensure we have the latest data for this incremental process
+  const { colTags, rowTags } = fGetSheetData(ssKey, sheetName, SpreadsheetApp.getActiveSpreadsheet(), true);
 
-  const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName(sheetName);
-  const { arr, rowTags, colTags } = g[ssKey][sheetName];
+  const destSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const headerRow = rowTags.header;
 
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
-  const ssAbbrCol = colTags.ssabbr; // Use a column to check if the first row is empty
+  if (headerRow === undefined) {
+    throw new Error(`Could not find a "Header" tag in the <${sheetName}> sheet.`);
+  }
 
-  let targetRow;
+  // Determine the target row for the new data
+  const lastRow = destSheet.getLastRow();
+  const targetRow = Math.max(headerRow + 2, lastRow + 1);
 
-  // Prepare the data to be written, matching the column order
+  // Prepare the data to be written in the correct column order
   const dataToWrite = [];
   dataToWrite[colTags.version - 1] = logData.version;
   dataToWrite[colTags.releasedate - 1] = logData.releaseDate;
-  // 'ismaster' column is removed
   dataToWrite[colTags.ssfullname - 1] = logData.ssFullName;
   dataToWrite[colTags.ssabbr - 1] = logData.ssAbbr;
   dataToWrite[colTags.ssid - 1] = logData.ssID;
 
-
-  // Case 1: First file, table is empty.
-  if (startRow === endRow && (!arr[startRow] || arr[startRow][ssAbbrCol] === '')) {
-    targetRow = startRow + 1;
-    // Data is written starting from the second column to preserve tags
-    const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
-    targetRange.setValues([dataToWrite]);
-  } else {
-    // Case 2 & 3: One or more files already logged.
-    targetRow = endRow + 2;
-    destSheet.insertRowsAfter(endRow + 1, 1);
-
-    // Move the 'TableEnd' tag
-    const oldTagCell = destSheet.getRange(endRow + 1, 1);
-    const oldTags = oldTagCell.getValue().toString().split(',').map(t => t.trim());
-    const newTags = oldTags.filter(t => t.toLowerCase() !== 'tableend');
-    oldTagCell.setValue(newTags.join(', '));
-    destSheet.getRange(targetRow, 1).setValue('TableEnd');
-
-    // Write the data starting from the second column
-    const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
-    targetRange.setValues([dataToWrite]);
-  }
+  // Write the data starting from the second column to preserve row tags
+  const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
+  targetRange.setValues([dataToWrite]);
 } // End function fLogLocalFileCopy
