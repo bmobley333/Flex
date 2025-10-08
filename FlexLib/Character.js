@@ -302,8 +302,8 @@ function fCreateNewCharacterSheet(version, parentFolder) {
 
 /* function fCreateLatestCharacter
    Purpose: Controller for creating a character using the latest available version without a prompt.
-   Assumptions: None.
-   Notes: Determines the latest version and calls the core character creation function. Triggers initial setup if needed.
+   Assumptions: The initial setup process has already been completed by the user.
+   Notes: Determines the latest version and calls the core character creation function.
    @returns {void}
 */
 function fCreateLatestCharacter() {
@@ -311,27 +311,16 @@ function fCreateLatestCharacter() {
   const sheetName = 'MyVersions';
   const codexSS = fGetCodexSpreadsheet();
 
-  let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
-  const headerRow = rowTags.header;
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
 
-  // 1. If the table is empty (or sheet is new), run the initial setup.
-  if (headerRow === undefined || arr.length <= headerRow + 1 || !arr[headerRow + 1][colTags.ssabbr]) {
-    fInitialSetup();
-    // After setup, we MUST reload the sheet data to get the new information
-    const reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
-    arr = reloadedData.arr;
-    rowTags = reloadedData.rowTags;
-    colTags = reloadedData.colTags;
-  }
-
-  // 2. Find the highest version number that has a CS file, using the new Header-based logic.
+  // Find the highest version number that has a CS file.
   const versionsWithCS = arr
     .slice(rowTags.header + 1)
     .filter(row => row.length > colTags.ssabbr && row[colTags.ssabbr] === 'CS')
     .map(row => parseFloat(row[colTags.version]));
 
   if (versionsWithCS.length === 0) {
-    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.');
+    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.\n\nPlease run the setup from the main menu if you have not done so.');
     return;
   }
 
@@ -342,8 +331,8 @@ function fCreateLatestCharacter() {
 
 /* function fCreateLegacyCharacter
    Purpose: Controller for creating a character from a list of older, non-latest versions.
-   Assumptions: None.
-   Notes: Prompts the user to select from a list of available legacy versions. Triggers initial setup if needed.
+   Assumptions: The initial setup process has already been completed by the user.
+   Notes: Prompts the user to select from a list of available legacy versions.
    @returns {void}
 */
 function fCreateLegacyCharacter() {
@@ -351,27 +340,16 @@ function fCreateLegacyCharacter() {
   const sheetName = 'MyVersions';
   const codexSS = fGetCodexSpreadsheet();
 
-  let { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
-  const headerRow = rowTags.header;
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
 
-  // 1. If the table is empty (or sheet is new), run the initial setup.
-  if (headerRow === undefined || arr.length <= headerRow + 1 || !arr[headerRow + 1][colTags.ssabbr]) {
-    fInitialSetup();
-    // After setup, we MUST reload the sheet data to get the new information
-    const reloadedData = fGetSheetData(ssKey, sheetName, codexSS, true);
-    arr = reloadedData.arr;
-    rowTags = reloadedData.rowTags;
-    colTags = reloadedData.colTags;
-  }
-
-  // 2. Find and prompt for legacy versions, using the new Header-based logic.
+  // Find and prompt for legacy versions.
   const versionsWithCS = arr
     .slice(rowTags.header + 1)
     .filter(row => row.length > colTags.ssabbr && row[colTags.ssabbr] === 'CS')
     .map(row => parseFloat(row[colTags.version]));
 
   if (versionsWithCS.length === 0) {
-    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.');
+    fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.\n\nPlease run the setup from the main menu if you have not done so.');
     return;
   }
 

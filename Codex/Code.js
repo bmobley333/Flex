@@ -1,23 +1,52 @@
-/* global FlexLib */
+/* global FlexLib, PropertiesService, SpreadsheetApp */
+
+const SCRIPT_INITIALIZED_KEY = 'CODEX_INITIALIZED';
 
 /* function onOpen
    Purpose: Simple trigger that runs automatically when the spreadsheet is opened.
    Assumptions: None.
-   Notes: Its sole job is to call the library to build the custom menus. It only shows the Designer menu for the admin.
+   Notes: Builds menus based on authorization status and user identity (player vs. designer).
    @returns {void}
 */
 function onOpen() {
-  FlexLib.fCreateCodexMenu();
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
 
-  // Get the globals object from the library.
-  const g = FlexLib.getGlobals();
-
-  // Only show the Designer menu if the user is the admin.
-  if (Session.getActiveUser().getEmail() === g.ADMIN_EMAIL) {
-    FlexLib.fCreateDesignerMenu('Codex');
+  if (isInitialized) {
+    // If the script is initialized, create the full menus.
+    FlexLib.fCreateCodexMenu();
+    const g = FlexLib.getGlobals();
+    if (Session.getActiveUser().getEmail() === g.ADMIN_EMAIL) {
+      FlexLib.fCreateDesignerMenu('Codex');
+    }
+  } else {
+    // If not initialized, show a simple menu to activate the script.
+    SpreadsheetApp.getUi()
+      .createMenu('*** Flex ***')
+      .addItem('▶️ Activate Flex Menus', 'fActivateCodex')
+      .addToUi();
   }
 } // End function onOpen
 
+/* function fActivateCodex
+   Purpose: Runs the first-time authorization and setup, then prompts the user to refresh.
+   Assumptions: Triggered by a user clicking the 'Activate' menu item.
+   Notes: This function's execution triggers the Google Auth prompt and the one-time setup.
+   @returns {void}
+*/
+function fActivateCodex() {
+  // First, call the library to run the initial setup.
+  FlexLib.run('InitialSetup');
+
+  // Once setup is complete, set the property so the full menus appear next time.
+  const scriptProperties = PropertiesService.getScriptProperties();
+  scriptProperties.setProperty(SCRIPT_INITIALIZED_KEY, 'true');
+
+  // Display a consistent success message.
+  const title = 'IMPORTANT - Please Refresh Browser Tab';
+  const message = '✅ Success! The script has been authorized and setup is complete.\n\nPlease refresh this browser tab now to load the full custom menus.';
+  SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
+} // End function fActivateCodex
 
 /* function fMenuTrimSheet
    Purpose: Local trigger for the "Trim Empty Rows/Cols" menu item.

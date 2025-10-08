@@ -16,6 +16,7 @@
 function run(command) {
   try {
     const commandMap = {
+      InitialSetup: fInitialSetup, // <-- ADDED
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
       TrimSheet: fTrimSheet,
