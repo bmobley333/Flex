@@ -1,4 +1,4 @@
-/* global FlexLib, PropertiesService, SpreadsheetApp */
+/* global FlexLib, PropertiesService, SpreadsheetApp, Session */
 
 const SCRIPT_INITIALIZED_KEY = 'CODEX_INITIALIZED';
 
@@ -11,12 +11,13 @@ const SCRIPT_INITIALIZED_KEY = 'CODEX_INITIALIZED';
 function onOpen() {
   const scriptProperties = PropertiesService.getScriptProperties();
   const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
+  const g = FlexLib.getGlobals();
+  const isAdmin = Session.getActiveUser().getEmail() === g.ADMIN_EMAIL;
 
-  if (isInitialized) {
-    // If the script is initialized, create the full menus.
+  if (isInitialized || isAdmin) {
+    // If the script is initialized OR the user is the admin, create the full menus.
     FlexLib.fCreateCodexMenu();
-    const g = FlexLib.getGlobals();
-    if (Session.getActiveUser().getEmail() === g.ADMIN_EMAIL) {
+    if (isAdmin) {
       FlexLib.fCreateDesignerMenu('Codex');
     }
   } else {
