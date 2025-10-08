@@ -16,7 +16,8 @@
 function run(command) {
   try {
     const commandMap = {
-      AddNewCustomSource: fAddNewCustomSource, // <-- ADDED
+      SyncPowerChoices: fUpdatePowerTablesList, // <-- RENAMED
+      AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
       ToggleVisibility: fToggleDesignerVisibility,
@@ -28,7 +29,6 @@ function run(command) {
       DeleteCharacter: fDeleteCharacter,
       ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
-      UpdatePowerTables: fUpdatePowerTablesList,
       FilterPowers: fFilterPowers,
       PrepGameForPaper: fPrepGameForPaper,
     };

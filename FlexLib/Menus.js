@@ -31,17 +31,18 @@ function fCreateCodexMenu() {
     .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
     .addToUi();
 } // End function fCreateCodexMenu
+
 /* function fCreateFlexMenu
    Purpose: Creates the main custom menu for Flex spreadsheets.
    Assumptions: This is called from an onOpen trigger.
-   Notes: This will be the primary user-facing menu. Includes a placeholder item to prevent errors.
+   Notes: This will be the primary user-facing menu.
    @returns {void}
 */
 function fCreateFlexMenu() {
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
-    .addItem('Filter Powers⚡', 'fMenuFilterPowers')
-    .addItem('More Actions Coming Soon...', 'fMenuPlaceholder')
+    .addItem('Sync Power Choices 🔄', 'fMenuSyncPowerChoices')
+    .addItem('Filter Powers ⚡', 'fMenuFilterPowers')
     .addToUi();
 } // End function fCreateFlexMenu
 
@@ -78,8 +79,7 @@ function fCreateDesignerMenu(context = '') {
     menu.addItem('Build Powers', 'fMenuBuildPowers');
   }
   if (context === 'CS') {
-    menu.addItem('Update <Choose Powers>', 'fMenuUpdatePowerTables');
-    menu.addItem('Copy CS <Game> to <Paper>', 'fMenuPrepGameForPaper'); // <-- RENAMED
+    menu.addItem('Copy CS <Game> to <Paper>', 'fMenuPrepGameForPaper');
   }
 
   menu.addSeparator();

@@ -198,15 +198,15 @@ function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
 
-/* function fMenuUpdatePowerTables
-   Purpose: Local trigger for the "Update Power Tables" menu item.
+/* function fMenuSyncPowerChoices
+   Purpose: Local trigger for the "Sync Power Choices" menu item.
    Assumptions: None.
    Notes: Acts as a pass-through to the central dispatcher in FlexLib.
    @returns {void}
 */
-function fMenuUpdatePowerTables() {
-  FlexLib.run('UpdatePowerTables');
-} // End function fMenuUpdatePowerTables
+function fMenuSyncPowerChoices() {
+  FlexLib.run('SyncPowerChoices');
+} // End function fMenuSyncPowerChoices
 
 /* function fMenuFilterPowers
    Purpose: Local trigger for the "Filter Powers" menu item.
