@@ -127,6 +127,17 @@ function fMenuRenameCharacter() {
   FlexLib.run('RenameCharacter');
 } // End function fMenuRenameCharacter
 
+
+/* function fMenuAddNewCustomSource
+   Purpose: Local trigger for the "Add New Source..." menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuAddNewCustomSource() {
+  FlexLib.run('AddNewCustomSource');
+} // End function fMenuAddNewCustomSource
+
 /* function fMenuDeleteCharacter
    Purpose: Local trigger for the "Delete Character(s)" menu item.
    Assumptions: None.

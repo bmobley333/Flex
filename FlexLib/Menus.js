@@ -18,15 +18,19 @@ function fCreateCodexMenu() {
     .addItem('Latest Version', 'fMenuCreateLatestCharacter')
     .addItem('Older Legacy Version', 'fMenuCreateLegacyCharacter');
 
+  const customSourcesMenu = SpreadsheetApp.getUi().createMenu('Manage Custom Sources')
+    .addItem('Add New Source...', 'fMenuAddNewCustomSource');
+
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
     .addSubMenu(createMenu)
     .addItem('Rename Character', 'fMenuRenameCharacter')
     .addSeparator()
+    .addSubMenu(customSourcesMenu)
+    .addSeparator()
     .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
     .addToUi();
 } // End function fCreateCodexMenu
-
 /* function fCreateFlexMenu
    Purpose: Creates the main custom menu for Flex spreadsheets.
    Assumptions: This is called from an onOpen trigger.

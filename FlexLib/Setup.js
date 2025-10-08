@@ -20,7 +20,7 @@ function fInitialSetup() {
   fShowToast('Creating Google Drive folders...', '⚙️ Setup');
   const parentFolder = fGetOrCreateFolder('MetaScape Flex');
   fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
-  fGetOrCreateFolder('Characters', parentFolder); // Create the new Characters sub-folder
+  fGetOrCreateFolder('Characters', parentFolder);
 
   // 2. Move and Rename this Codex
   fShowToast('Organizing your Codex file...', '⚙️ Setup');
@@ -42,6 +42,10 @@ function fInitialSetup() {
   // 4. Sync all files and log them to the local <MyVersions> sheet
   const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
+
+  // 5. Add the player's own custom abilities as the first source
+  fShowToast('Configuring custom abilities...', '⚙️ Setup');
+  fAddOwnCustomAbilitiesSource(); // <-- ADDED
 
   fEndToast();
   const successMessage = 'Your Player\'s Codex is now ready to use.\n\nPlease bookmark this Player\'s Codex file (and you can also find it in your Google Drive under the "MetaScape Flex" folder).';
