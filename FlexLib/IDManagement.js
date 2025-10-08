@@ -20,14 +20,14 @@ function fGetMasterSheetId(version, ssAbbr) {
   fBuildTagMaps('Ver', 'Versions');
 
   const { arr, rowTags, colTags } = g.Ver['Versions'];
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
+  const headerRow = rowTags.header;
 
-  if (startRow === undefined || endRow === undefined) {
-    throw new Error("Could not find 'tablestart' or 'tableend' row tags in the master <Versions> sheet.");
+  if (headerRow === undefined) {
+    throw new Error('Could not find "Header" row tag in the master <Versions> sheet.');
   }
+  const startRow = headerRow + 1;
 
-  for (let r = startRow; r <= endRow; r++) {
+  for (let r = startRow; r < arr.length; r++) {
     const rowVersion = String(arr[r][colTags.version]);
     const rowAbbr = arr[r][colTags.ssabbr];
 

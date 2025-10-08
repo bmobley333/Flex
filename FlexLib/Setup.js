@@ -125,34 +125,48 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
 /* function fLogLocalFileCopy
    Purpose: Writes the details of a newly created local master file into the player's <MyVersions> sheet.
    Assumptions: The logData object contains all necessary keys.
-   Notes: Uses a "Header"-based approach to find the next empty row.
+   Notes: Uses a "Header"-based approach and propagates formatting.
    @param {object} logData - An object containing the data for the new file.
    @returns {void}
 */
 function fLogLocalFileCopy(logData) {
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
-  // Force a refresh to ensure we have the latest data for this incremental process
-  const { colTags, rowTags } = fGetSheetData(ssKey, sheetName, SpreadsheetApp.getActiveSpreadsheet(), true);
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName(sheetName);
 
-  const destSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const { arr, colTags, rowTags } = fGetSheetData(ssKey, sheetName, destSS, true);
   const headerRow = rowTags.header;
+  const lastRow = destSheet.getLastRow();
+  let targetRow;
 
   if (headerRow === undefined) {
     throw new Error(`Could not find a "Header" tag in the <${sheetName}> sheet.`);
   }
 
-  // Determine the target row for the new data
-  const lastRow = destSheet.getLastRow();
-  const targetRow = Math.max(headerRow + 2, lastRow + 1);
-
-  // Prepare the data to be written in the correct column order
   const dataToWrite = [];
   dataToWrite[colTags.version - 1] = logData.version;
   dataToWrite[colTags.releasedate - 1] = logData.releaseDate;
   dataToWrite[colTags.ssfullname - 1] = logData.ssFullName;
   dataToWrite[colTags.ssabbr - 1] = logData.ssAbbr;
   dataToWrite[colTags.ssid - 1] = logData.ssID;
+
+  const firstDataRowIndex = headerRow + 1;
+  const templateRow = firstDataRowIndex + 1; // 1-based template row number
+  const ssAbbrCol = colTags.ssabbr;
+
+  // Case 1: The table is empty. Write data to the pre-formatted first row.
+  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][ssAbbrCol]) {
+    targetRow = templateRow;
+  } else {
+    // Case 2: The table has data. Insert a new row and copy formatting.
+    targetRow = lastRow + 1;
+    destSheet.insertRowsAfter(lastRow, 1);
+
+    const formatSourceRange = destSheet.getRange(templateRow, 1, 1, destSheet.getMaxColumns());
+    const formatDestRange = destSheet.getRange(targetRow, 1, 1, destSheet.getMaxColumns());
+    formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
+  }
 
   // Write the data starting from the second column to preserve row tags
   const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);

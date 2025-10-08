@@ -18,11 +18,15 @@ function fRenameCharacter() {
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
 
-  // --- REFACTORED LINE ---
   const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
+  const headerRow = rowTags.header;
 
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
+  if (headerRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'The <Characters> sheet is missing a "Header" row tag.');
+    return;
+  }
+
   const checkboxCol = colTags.checkbox;
   const charNameCol = colTags.charname;
   const csidCol = colTags.csid;
@@ -30,10 +34,12 @@ function fRenameCharacter() {
 
   // 1. Find the selected character (must be exactly one)
   const selectedCharacters = [];
-  for (let r = startRow; r <= endRow; r++) {
+  // Loop from the row after the header to the end of the data array
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    // Check that the row exists, has a checkbox checked, and has a character name
     if (arr[r] && arr[r][checkboxCol] === true && arr[r][charNameCol]) {
       selectedCharacters.push({
-        row: r + 1, // 1-based row
+        row: r + 1, // 1-based row for direct use with Range objects
         name: arr[r][charNameCol],
         id: arr[r][csidCol],
         version: arr[r][versionCol],
@@ -105,27 +111,25 @@ function fDeleteCharacter() {
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
 
-  // --- REFACTORED ---
   const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true); // Force refresh
   const destSheet = codexSS.getSheetByName(sheetName);
-  // --- END REFACTORED ---
+  const headerRow = rowTags.header;
 
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
+  if (headerRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'The <Characters> sheet is missing a "Header" row tag.');
+    return;
+  }
+
   const checkboxCol = colTags.checkbox;
   const charNameCol = colTags.charname;
   const csidCol = colTags.csid;
 
-  if (checkboxCol === undefined || charNameCol === undefined || csidCol === undefined) {
-    fEndToast();
-    fShowMessage('❌ Error', 'The <Characters> sheet is missing a "CheckBox", "CharName", or "CSID" column tag.');
-    return;
-  }
-
   // 1. Find all checked characters
   const selectedCharacters = [];
-  for (let r = startRow; r <= endRow; r++) {
-    // Only consider rows that actually have a character name
+  // Loop from the row after the header to the end of the data
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    // Only consider rows that actually have a character name and are checked
     if (arr[r] && arr[r][checkboxCol] === true && arr[r][charNameCol]) {
       selectedCharacters.push({
         row: r + 1, // Store 1-based row for later
@@ -173,7 +177,7 @@ function fDeleteCharacter() {
     }
   });
 
-  // 4. Delete the spreadsheet rows using our new robust helper
+  // 4. Delete the spreadsheet rows using our robust helper
   // Sort in reverse order to avoid index shifting issues
   selectedCharacters.sort((a, b) => b.row - a.row).forEach(character => {
     fDeleteTableRow(destSheet, character.row);
@@ -194,33 +198,30 @@ function fDeleteCharacter() {
    @returns {void}
 */
 function fCreateNewCharacterSheet(version, parentFolder) {
-  // 1. Get the local CS template ID using the new ID Management system
+  // 1. Get the local CS template ID using the ID Management system
   const localCsId = fGetSheetId(version, 'CS');
-
   if (!localCsId) {
     fShowMessage('❌ Error', `Could not find the local master Character Sheet for Version ${version}. Please try syncing versions again.`);
     return;
   }
 
   // 2. Get the destination folder and copy the template
-  fShowToast('Creating a new character sheet...', 'New Character');
+  fShowToast('⏳ Creating a new character sheet...', 'New Character');
   const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
   const csTemplateFile = DriveApp.getFileById(localCsId);
   const newCharFile = csTemplateFile.makeCopy(charactersFolder);
-  const newCharSS = SpreadsheetApp.openById(newCharFile.getId()); // Open the new sheet to operate on it
+  const newCharSS = SpreadsheetApp.openById(newCharFile.getId());
 
   fEmbedCodexId(newCharSS);
 
-  // --- THIS IS THE FIX ---
   // Reposition <Paper> sheet for the player
   const paperSheet = newCharSS.getSheetByName('Paper');
   const hideSheet = newCharSS.getSheetByName('Hide>');
   if (paperSheet && hideSheet) {
     const hideIndex = hideSheet.getIndex();
     newCharSS.setActiveSheet(paperSheet);
-    newCharSS.moveActiveSheet(hideIndex - 1); // Move to the position BEFORE the hide sheet
+    newCharSS.moveActiveSheet(hideIndex - 1);
   }
-  // --- END FIX ---
 
   const characterName = fPromptWithInput('Name Your Character', 'Please enter a name for your new character:');
 
@@ -239,47 +240,46 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
 
-  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS);
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
   const destSheet = codexSS.getSheetByName(sheetName);
-
-  const startRow = rowTags.tablestart;
-  const endRow = rowTags.tableend;
-  const charNameCol = colTags.charname;
-
+  const headerRow = rowTags.header;
+  const lastRow = destSheet.getLastRow();
   let targetRow;
 
-  // Prepare the character data first, as it's needed in both cases.
   const dataToWrite = [];
   dataToWrite[colTags.csid - 1] = newCharFile.getId();
   dataToWrite[colTags.version - 1] = version;
   dataToWrite[colTags.checkbox - 1] = true;
-  dataToWrite[colTags.charname - 1] = versionedCharacterName; // Use versioned name
-  dataToWrite[colTags.rules - 1] = `v${version} Rules`;     // Use versioned rules text
+  dataToWrite[colTags.charname - 1] = versionedCharacterName;
+  dataToWrite[colTags.rules - 1] = `v${version} Rules`;
 
-  // Case 1: First character, table is empty.
-  if (startRow === endRow && (!arr[startRow] || arr[startRow][charNameCol] === '')) {
-    targetRow = startRow + 1;
-    const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
-    targetRange.setValues([dataToWrite]);
+  const firstDataRowIndex = headerRow + 1;
+  const templateRow = firstDataRowIndex + 1; // This is the 1-based row number of our template
+  const charNameCol = colTags.charname;
+
+  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][charNameCol]) {
+    targetRow = templateRow;
   } else {
-    // Case 2 & 3: One or more characters exist.
-    targetRow = endRow + 2;
-    destSheet.insertRowsAfter(endRow + 1, 1);
+    targetRow = lastRow + 1;
+    destSheet.insertRowsAfter(lastRow, 1);
 
-    const oldTagCell = destSheet.getRange(endRow + 1, 1);
-    const oldTags = oldTagCell.getValue().toString().split(',').map(t => t.trim());
-    const newTags = oldTags.filter(t => t.toLowerCase() !== 'tableend');
-    oldTagCell.setValue(newTags.join(', '));
-    destSheet.getRange(targetRow, 1).setValue('TableEnd');
-
-    if (colTags.checkbox !== undefined) {
-      const checkboxCol = colTags.checkbox + 1;
-      const numRows = endRow - startRow + 1;
-      destSheet.getRange(startRow + 1, checkboxCol, numRows, 1).uncheck();
-    }
-    const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
-    targetRange.setValues([dataToWrite]);
+    // --- NEW LOGIC ---
+    // Copy the formatting from the template row to the new row.
+    const formatSourceRange = destSheet.getRange(templateRow, 1, 1, destSheet.getMaxColumns());
+    const formatDestRange = destSheet.getRange(targetRow, 1, 1, destSheet.getMaxColumns());
+    formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
   }
+
+  if (colTags.checkbox !== undefined) {
+    const checkboxCol = colTags.checkbox + 1;
+    const numRows = lastRow - headerRow;
+    if (numRows > 0) {
+      destSheet.getRange(headerRow + 2, checkboxCol, numRows, 1).uncheck();
+    }
+  }
+
+  const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
+  targetRange.setValues([dataToWrite]);
 
   // 4. Format the new row appropriately
   if (colTags.checkbox !== undefined) {
@@ -293,7 +293,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const rulesLink = SpreadsheetApp.newRichTextValue().setText(`v${version} Rules`).setLinkUrl(rulesUrl).build();
   destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
 
-  // 5. Final, corrected success message
+  // 5. Final success message
   fEndToast();
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
   fShowMessage('Character Created!', successMessage);

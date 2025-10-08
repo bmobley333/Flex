@@ -24,22 +24,21 @@ function fUpdatePowerTablesList() {
   }
   const sourceSS = SpreadsheetApp.openById(dbId);
 
+  // 2. Get all unique power table names from the source DB
   const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
-
-  const sourceSheet = sourceSS.getSheetByName('Powers');
-  if (!sourceSheet) {
+  const headerRow = rowTags.header;
+  if (headerRow === undefined) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find the <Powers> sheet in the master DB file.');
+    fShowMessage('❌ Error', 'Could not find a "Header" tag in the master DB <Powers> sheet.');
     return;
   }
-
-  const startRow = rowTags.header + 1;
+  const startRow = headerRow + 1;
   const tableNameCol = colTags.tablename;
 
   const allTableNames = arr.slice(startRow).map(row => row[tableNameCol]);
   const uniqueTableNames = [...new Set(allTableNames)].sort();
 
-  // 3. Get the destination <Choose Powers> sheet and its properties
+  // 3. Get the destination <Choose Powers> sheet
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Choose Powers');
   if (!destSheet) {
@@ -49,35 +48,44 @@ function fUpdatePowerTablesList() {
   }
 
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Choose Powers', destSS, true);
-
   const destHeaderRow = destRowTags.header;
-  const destTableNameCol = destColTags.tablename + 1;
-  const destCheckboxCol = destColTags.isactive + 1;
+  if (destHeaderRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Choose Powers> sheet.');
+    return;
+  }
 
-  // --- THIS IS THE FIX ---
-  // 4. Adjust rows to match the new list size
-  const dataStartRow = destHeaderRow + 2; // Data starts on the row AFTER the header (Header is 0-indexed, rows are 1-indexed)
+  // 4. Clear all old data below the header row
   const lastRow = destSheet.getLastRow();
-  const currentRowCount = lastRow - dataStartRow + 1;
-  const newRowCount = uniqueTableNames.length;
+  const firstDataRow = destHeaderRow + 2; // This is our pre-formatted template row (1-based)
+  if (lastRow >= firstDataRow) {
+    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getLastColumn() - 1).clearContent();
+    if (lastRow > firstDataRow) {
+      destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
+    }
+  }
 
+  // 5. Write the new data
+  const newRowCount = uniqueTableNames.length;
   if (newRowCount > 0) {
-    if (newRowCount > currentRowCount) {
-      destSheet.insertRowsAfter(lastRow, newRowCount - currentRowCount);
-    } else if (newRowCount < currentRowCount) {
-      destSheet.deleteRows(dataStartRow + newRowCount, currentRowCount - newRowCount);
+    // Add new rows if needed (leaving the first pre-formatted row)
+    if (newRowCount > 1) {
+      destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
+
+      // --- NEW LOGIC ---
+      // Copy the formatting from the template row to the newly created rows.
+      const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
+      const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
+      formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
     }
 
-    // 5. Write the new data and insert checkboxes
     const tableNameData = uniqueTableNames.map(name => [name]);
-    destSheet.getRange(dataStartRow, destTableNameCol, newRowCount, 1).setValues(tableNameData);
-    destSheet.getRange(dataStartRow, destCheckboxCol, newRowCount, 1).insertCheckboxes();
-  } else if (currentRowCount > 0) {
-    // If there are no new rows but old rows exist, clear them
-    destSheet.deleteRows(dataStartRow, currentRowCount);
-  }
-  // --- END FIX ---
+    const destTableNameCol = destColTags.tablename + 1;
+    const destCheckboxCol = destColTags.isactive + 1;
 
+    destSheet.getRange(firstDataRow, destTableNameCol, newRowCount, 1).setValues(tableNameData);
+    destSheet.getRange(firstDataRow, destCheckboxCol, newRowCount, 1).insertCheckboxes();
+  }
 
   fEndToast();
   fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);
