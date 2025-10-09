@@ -38,12 +38,3 @@ function fActivateMenus() {
 } // End function fActivateMenus
 
 
-/* function fMenuShareMyAbilities
-   Purpose: Local trigger for the "Share My Abilities..." menu item.
-   Assumptions: None.
-   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
-   @returns {void}
-*/
-function fMenuShareMyAbilities() {
-  FlexLib.run('ShareMyAbilities');
-} // End function fMenuShareMyAbilities
