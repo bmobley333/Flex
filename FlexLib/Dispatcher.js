@@ -16,6 +16,7 @@
 function run(command) {
   try {
     const commandMap = {
+      ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,
       DeleteCustomList: fDeleteCustomList,
       CreateCustomList: fCreateNewCustomList,
@@ -30,7 +31,7 @@ function run(command) {
       CreateLegacyCharacter: fCreateLegacyCharacter,
       RenameCharacter: fRenameCharacter,
       DeleteCharacter: fDeleteCharacter,
-      ShowPlaceholder: fShowplaceholderMessage,
+      ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
       FilterPowers: fFilterPowers,
       PrepGameForPaper: fPrepGameForPaper,

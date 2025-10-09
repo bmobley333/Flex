@@ -245,23 +245,54 @@ function fCreateNewCustomList() {
   fShowMessage('✅ Success', `Your new custom ability list "${listName}" has been created and added to your Codex.`);
 } // End function fCreateNewCustomList
 
-
-/* function fShareMyAbilities
-   Purpose: Orchestrates the workflow for a player to share their custom abilities sheet with another player.
-   Assumptions: Run from the menu in a player's "Cust" sheet. The advanced Drive API service must be enabled.
-   Notes: Grants viewer permission without sending a Google Drive notification and sends a custom notification email.
+/* function fShareCustomLists
+   Purpose: Orchestrates the workflow for sharing one or more player-owned custom ability lists.
+   Assumptions: Run from the Codex menu. The advanced Drive API service must be enabled.
+   Notes: Grants viewer permission and sends a custom notification email.
    @returns {void}
 */
-function fShareMyAbilities() {
-  fShowToast('⏳ Initializing share...', 'Share My Abilities');
-
-  const activeSS = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetId = activeSS.getId();
+function fShareCustomLists() {
+  fShowToast('⏳ Initializing share...', 'Share Custom Lists');
+  const ssKey = 'Codex';
+  const sheetName = 'CustomSources';
+  const codexSS = fGetCodexSpreadsheet();
   const currentUser = Session.getActiveUser().getEmail();
 
-  // 1. Prompt for the recipient's email address
-  const promptMessage = `Your Custom Abilities ID is:\n${sheetId}\n\nEnter the email address of the player you want to share this file with:`;
-  const email = fPromptWithInput('Share My Abilities', promptMessage);
+  // 1. Find all checked lists
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
+  const headerRow = rowTags.header;
+
+  const selectedLists = [];
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.sourcename]) {
+      selectedLists.push({
+        name: arr[r][colTags.sourcename],
+        id: arr[r][colTags.sheetid],
+        owner: arr[r][colTags.owner],
+      });
+    }
+  }
+
+  // 2. --- Validation ---
+  if (selectedLists.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the custom list(s) you wish to share.');
+    return;
+  }
+
+  const nonOwnedLists = selectedLists.filter(list => list.owner !== currentUser);
+  if (nonOwnedLists.length > 0) {
+    const nonOwnedNames = nonOwnedLists.map(list => list.name).join(', ');
+    fEndToast();
+    fShowMessage('❌ Permission Denied', `You can only share custom ability lists that you own. You are not the owner of: ${nonOwnedNames}.`);
+    return;
+  }
+  // --- End Validation ---
+
+  // 3. Prompt for the recipient's email address
+  const listNamesForPrompt = selectedLists.map(c => `- ${c.name}`).join('\n');
+  const promptMessage = `You are about to share the following ${selectedLists.length} list(s):\n\n${listNamesForPrompt}\n\nEnter the email address of the player you want to share these files with:`;
+  const email = fPromptWithInput('Share Custom Lists', promptMessage);
 
   if (!email) {
     fEndToast();
@@ -269,7 +300,6 @@ function fShareMyAbilities() {
     return;
   }
 
-  // 2. Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     fEndToast();
@@ -277,37 +307,39 @@ function fShareMyAbilities() {
     return;
   }
 
-  // 3. Grant permissions using the advanced Drive API and send our custom email
+  // 4. Grant permissions and send a consolidated email
   try {
-    fShowToast(`Sharing with ${email}...`, 'Share My Abilities');
-
-    // --- CORRECTED LOGIC ---
-    const permissionResource = {
-      role: 'reader',
-      type: 'user',
-      emailAddress: email, // <-- THIS IS THE FIX
-    };
-    Drive.Permissions.create(permissionResource, sheetId, {
-      sendNotificationEmail: false,
+    fShowToast(`Sharing ${selectedLists.length} file(s) with ${email}...`, 'Share Custom Lists');
+    selectedLists.forEach(list => {
+      const permissionResource = {
+        role: 'reader',
+        type: 'user',
+        emailAddress: email,
+      };
+      Drive.Permissions.create(permissionResource, list.id, {
+        sendNotificationEmail: false,
+      });
     });
-    // --- END CORRECTION ---
 
-    fShowToast('Sending notification email...', 'Share My Abilities');
-    const subject = `Flex TTRPG: A custom abilities file has been shared with you!`;
-    const body = `The player ${currentUser} has shared a set of Flex Custom Abilities with you.\n\n` +
-      `Please copy the ID string below EXACTLY as it appears and paste it into your Player's Codex's text box when you run the Flex menu's "Manage Custom Sources" and "Add New Source...".\n\n` +
-      `ID String:\n${sheetId}`;
+    fShowToast('Sending notification email...', 'Share Custom Lists');
+    const subject = `Flex TTRPG: ${selectedLists.length} custom list(s) have been shared with you!`;
+    const listDetailsForEmail = selectedLists.map(list => `Name: ${list.name}.    ID below:\n${list.id}`).join('\n\n');
+    const body = `The player ${currentUser} has shared the following Flex Custom Abilities list(s) with you.\n\n` +
+      `To add them, open your Player's Codex, go to "Manage Custom Sources" > "Add New Source...", and paste the ID for each ONE list when prompted (For multiple lists, repeat for each ID below).\n\n` +
+      `----------------------------------------\n\n` +
+      `${listDetailsForEmail}\n\n` +
+      `----------------------------------------`;
     MailApp.sendEmail(email, subject, body);
 
     fEndToast();
-    fShowMessage('✅ Success!', `Your custom abilities file has been successfully shared with ${email}.`);
+    fShowMessage('✅ Success!', `Your custom list(s) have been successfully shared with ${email}.`);
   } catch (e) {
     console.error(`Sharing failed. Error: ${e}`);
     fEndToast();
-    // Restore the user-friendly error message
-    fShowMessage('❌ Error', 'An error occurred while trying to share the file. This can happen if you are not the owner of this file. Please try again.');
+    fShowMessage('❌ Error', 'An error occurred while trying to share the file(s). Please ensure the advanced Drive API is enabled for the Codex project.');
   }
-} // End function fShareMyAbilities
+} // End function fShareCustomLists
+
 
 /* function fAddNewCustomSource
    Purpose: The master workflow for adding a new, external custom ability source to the Codex.

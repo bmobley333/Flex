@@ -1,5 +1,5 @@
 /* global SpreadsheetApp */
-/* exported fVerCreateMenu */
+/* exported fCreateCodexMenu, fCreateFlexMenu, fCreateGenericMenus, fCreateCustMenu, fCreateDesignerMenu */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -23,6 +23,7 @@ function fCreateCodexMenu() {
     .addItem('Rename Custom List...', 'fMenuRenameCustomList')
     .addItem('Delete Custom List(s)...', 'fMenuDeleteCustomList')
     .addSeparator()
+    .addItem('Share Custom List(s)...', 'fMenuShareCustomLists')
     .addItem('Add New Source...', 'fMenuAddNewCustomSource');
 
   SpreadsheetApp.getUi() // <-- THIS WAS THE TYPO

@@ -153,14 +153,10 @@ function fFilterPowers() {
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Choose Powers> sheet.');
     return;
   }
-  const tableNameCol = choicesColTags.tablename;
-  const isActiveCol = choicesColTags.isactive;
-  const sourceCol = choicesColTags.source;
-
   const selectedTables = choicesArr
     .slice(choicesHeaderRow + 1)
-    .filter(row => row[isActiveCol] === true)
-    .map(row => ({ tableName: row[tableNameCol], source: row[sourceCol] }));
+    .filter(row => row[choicesColTags.isactive] === true)
+    .map(row => ({ tableName: row[choicesColTags.tablename], source: row[choicesColTags.source] }));
 
   if (selectedTables.length === 0) {
     fEndToast();
@@ -171,27 +167,35 @@ function fFilterPowers() {
   // 2. Fetch all powers from all selected sources.
   fShowToast('Fetching all selected powers...', 'Filter Powers');
   let allPowersData = [];
-  let dbHeader = []; // To store the header row for the cache
+  let dbHeader = [];
 
-  // 2a. Fetch from the local DB
+  // --- REFACTORED LOGIC ---
+  // Get the DB structure (colTags) first, as it's the master template for all power rows.
+  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
+  if (!dbId) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find your local "DB" file to get power data from. Please run initial setup.');
+    return;
+  }
+  const dbSS = SpreadsheetApp.openById(dbId);
+  const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
+  dbHeader = allDbPowers[dbRowTags.header];
+  // --- END REFACTOR ---
+
+
+  // 2a. Fetch from the local DB if selected
   const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
   if (selectedDbTables.length > 0) {
-    const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
-    if (dbId) {
-      const dbSS = SpreadsheetApp.openById(dbId);
-      const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
-      dbHeader = allDbPowers[dbRowTags.header];
-      const dbPowers = allDbPowers
-        .slice(dbRowTags.header + 1)
-        .filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
-      allPowersData = allPowersData.concat(dbPowers);
-    }
+    const dbPowers = allDbPowers
+      .slice(dbRowTags.header + 1)
+      .filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
+    allPowersData = allPowersData.concat(dbPowers);
   }
 
   // 2b. Fetch from Custom Sources
   const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
   if (selectedCustomTables.length > 0) {
-    const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'CustomSources', codexSS, true);
+    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'CustomSources', codexSS, true);
     for (const customTable of selectedCustomTables) {
       const sourceInfo = sourcesArr.find(row => row[sourcesColTags.sourcename] === customTable.source);
       if (sourceInfo) {
@@ -199,25 +203,18 @@ function fFilterPowers() {
         fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Powers');
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
-          const { arr: customSheetPowers, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'Powers', customSS);
-          if (dbHeader.length === 0) dbHeader = customSheetPowers[custRowTags.header]; // Grab header if DB wasn't used
+          const { arr: customSheetPowers, rowTags: custRowTags } = fGetSheetData(`Cust_${sourceId}`, 'Powers', customSS);
+          if (dbHeader.length === 0) dbHeader = customSheetPowers[custRowTags.header];
 
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomPowers = customSheetPowers
             .slice(custRowTags.header + 1)
-            .filter(row => row[custColTags.tablename] === cleanTableName);
+            .filter(row => row[dbColTags.tablename] === cleanTableName); // Use dbColTags here
 
-          // Dynamically build the DropDown value for custom powers
           filteredCustomPowers.forEach(row => {
-            const tableName = row[custColTags.tablename];
-            const abilityName = row[custColTags.abilityname];
-            const usage = row[custColTags.usage];
-            const action = row[custColTags.action];
-            const effect = row[custColTags.effect];
-            const dropDownValue = `Cust - ${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
-            row[custColTags.dropdown] = dropDownValue; // Add it to the row data
+            const dropDownValue = `Cust - ${row[dbColTags.tablename]} - ${row[dbColTags.abilityname]}⚡ (${row[dbColTags.usage]}, ${row[dbColTags.action]}) ➡ ${row[dbColTags.effect]}`;
+            row[dbColTags.dropdown] = dropDownValue;
           });
-
           allPowersData = allPowersData.concat(filteredCustomPowers);
         } catch (e) {
           console.error(`Could not access custom source "${customTable.source}". Error: ${e}`);
@@ -227,11 +224,6 @@ function fFilterPowers() {
     }
   }
 
-  if (allPowersData.length === 0) {
-    fEndToast();
-    fShowMessage('⚠️ No Powers Found', 'No powers matched your selected filters. The dropdowns will be empty.');
-  }
-
   // 3. Populate the <PowerDataCache> sheet
   const cacheSheet = csSS.getSheetByName('PowerDataCache');
   if (!cacheSheet) {
@@ -239,13 +231,14 @@ function fFilterPowers() {
     fShowMessage('❌ Error', 'Could not find the <PowerDataCache> sheet.');
     return;
   }
-  cacheSheet.clear(); // Clear old data
-  const dataToCache = [dbHeader, ...allPowersData];
-  cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
+  cacheSheet.clear();
+  if (allPowersData.length > 0) {
+    const dataToCache = [dbHeader, ...allPowersData];
+    cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
+  }
   fShowToast('⚡ Power data cached locally.', 'Filter Powers');
 
   // 4. Build and apply the validation rule to the <Game> sheet.
-  const { colTags: dbColTags } = fGetSheetData('DB', 'Powers'); // Re-get to ensure we have colTags
   const filteredPowerList = allPowersData.map(row => row[dbColTags.dropdown]);
   const gameSheet = csSS.getSheetByName('Game');
   if (!gameSheet) {
@@ -258,8 +251,7 @@ function fFilterPowers() {
   const startRow = gameRowTags.powertablestart + 1;
   const endRow = gameRowTags.powertableend + 1;
   const numRows = endRow - startRow + 1;
-
-  const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredPowerList, true).setAllowInvalid(false).build();
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredPowerList.length > 0 ? filteredPowerList : [' '], true).setAllowInvalid(false).build();
   const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('powerdropdown'));
   dropDownCols.forEach(tag => {
     const colIndex = gameColTags[tag] + 1;

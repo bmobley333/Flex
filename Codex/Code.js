@@ -168,6 +168,16 @@ function fMenuDeleteCustomList() {
   FlexLib.run('DeleteCustomList');
 } // End function fMenuDeleteCustomList
 
+/* function fMenuShareCustomLists
+   Purpose: Local trigger for the "Share Custom List(s)..." menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuShareCustomLists() {
+  FlexLib.run('ShareCustomLists');
+} // End function fMenuShareCustomLists
+
 
 /* function fMenuDeleteCharacter
    Purpose: Local trigger for the "Delete Character(s)" menu item.
