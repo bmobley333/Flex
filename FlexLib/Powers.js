@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* function fUpdatePowerTablesList
-   Purpose: Updates the <Choose Powers> sheet with a unique list of all TableNames from the PLAYER'S LOCAL DB and all registered custom sources.
+   Purpose: Updates the <Filter Powers> sheet with a unique list of all TableNames from the PLAYER'S LOCAL DB and all registered custom sources.
    Assumptions: The user is running this from a Character Sheet.
    Notes: Aggregates from multiple sources and sorts them into logical groups.
    @returns {void}
@@ -80,18 +80,18 @@ function fUpdatePowerTablesList() {
 
   // --- Part 2: Write the Aggregated Data to the Sheet ---
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName('Choose Powers');
+  const destSheet = destSS.getSheetByName('Filter Powers');
   if (!destSheet) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find the <Choose Powers> sheet in this spreadsheet.');
+    fShowMessage('❌ Error', 'Could not find the <Filter Powers> sheet in this spreadsheet.');
     return;
   }
 
-  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Choose Powers', destSS, true);
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Powers', destSS, true);
   const destHeaderRow = destRowTags.header;
   if (destHeaderRow === undefined) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Choose Powers> sheet.');
+    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
     return;
   }
 
@@ -129,12 +129,12 @@ function fUpdatePowerTablesList() {
   }
 
   fEndToast();
-  fShowMessage('✅ Success', `The <Choose Powers> sheet has been updated with ${newRowCount} power tables.`);
+  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.`);
 } // End function fUpdatePowerTablesList
 
 
 /* function fFilterPowers
-   Purpose: Builds custom power selection dropdowns on the Character Sheet based on the player's choices in <Choose Powers>, aggregating from DB and Custom sources.
+   Purpose: Builds custom power selection dropdowns on the Character Sheet based on the player's choices in <Filter Powers>, aggregating from DB and Custom sources.
    Assumptions: The user is running this from a Character Sheet.
    Notes: This is the primary player-facing function for customizing their power list. It now also populates a local cache sheet.
    @returns {void}
@@ -145,12 +145,12 @@ function fFilterPowers() {
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
   const codexSS = fGetCodexSpreadsheet();
 
-  // 1. Read the player's choices from the <Choose Powers> sheet.
-  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Choose Powers', csSS, true);
+  // 1. Read the player's choices from the <Filter Powers> sheet.
+  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS, true);
   const choicesHeaderRow = choicesRowTags.header;
   if (choicesHeaderRow === undefined) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Choose Powers> sheet.');
+    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
     return;
   }
   const selectedTables = choicesArr
@@ -160,7 +160,7 @@ function fFilterPowers() {
 
   if (selectedTables.length === 0) {
     fEndToast();
-    fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Choose Powers> sheet before filtering.');
+    fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Filter Powers> sheet before filtering.');
     return;
   }
 
