@@ -147,6 +147,28 @@ function fMenuAddNewCustomSource() {
   FlexLib.run('AddNewCustomSource');
 } // End function fMenuAddNewCustomSource
 
+
+/* function fMenuRenameCustomList
+   Purpose: Local trigger for the "Rename Custom List..." menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuRenameCustomList() {
+  FlexLib.run('RenameCustomList');
+} // End function fMenuRenameCustomList
+
+/* function fMenuDeleteCustomList
+   Purpose: Local trigger for the "Delete Custom List(s)..." menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuDeleteCustomList() {
+  FlexLib.run('DeleteCustomList');
+} // End function fMenuDeleteCustomList
+
+
 /* function fMenuDeleteCharacter
    Purpose: Local trigger for the "Delete Character(s)" menu item.
    Assumptions: None.

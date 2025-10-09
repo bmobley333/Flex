@@ -1,10 +1,174 @@
-/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session, Drive, fGetSheetId, fGetOrCreateFolder */
-/* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource, fCreateNewCustomList */
+/* global g, fGetSheetData, SpreadsheetApp, fPromptWithInput, fShowToast, fEndToast, fShowMessage, fGetCodexSpreadsheet, DriveApp, MailApp, Session, Drive, fGetSheetId, fGetOrCreateFolder, fDeleteTableRow */
+/* exported fAddOwnCustomAbilitiesSource, fShareMyAbilities, fAddNewCustomSource, fCreateNewCustomList, fRenameCustomList, fDeleteCustomList */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Custom Abilities Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/* function fDeleteCustomList
+   Purpose: The master workflow for deleting one or more player-owned custom ability lists.
+   Assumptions: Run from the Codex menu.
+   Notes: Includes validation to ensure the user owns all selected lists.
+   @returns {void}
+*/
+function fDeleteCustomList() {
+  fShowToast('⏳ Initializing delete...', 'Delete Custom List(s)');
+  const ssKey = 'Codex';
+  const sheetName = 'CustomSources';
+  const codexSS = fGetCodexSpreadsheet();
+  const currentUser = Session.getActiveUser().getEmail();
+
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
+  const headerRow = rowTags.header;
+
+  const selectedLists = [];
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.sourcename]) {
+      selectedLists.push({
+        row: r + 1, // 1-based row
+        name: arr[r][colTags.sourcename],
+        id: arr[r][colTags.sheetid],
+        owner: arr[r][colTags.owner],
+      });
+    }
+  }
+
+  // --- Validation ---
+  if (selectedLists.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the custom list(s) you wish to delete.');
+    return;
+  }
+
+  // Verify ownership of ALL selected lists
+  const nonOwnedLists = selectedLists.filter(list => list.owner !== currentUser);
+  if (nonOwnedLists.length > 0) {
+    const nonOwnedNames = nonOwnedLists.map(list => list.name).join(', ');
+    fEndToast();
+    fShowMessage('❌ Permission Denied', `You can only delete custom ability lists that you own. You are not the owner of: ${nonOwnedNames}.`);
+    return;
+  }
+  // --- End Validation ---
+
+  // Confirmation Prompt
+  fShowToast('Waiting for your confirmation...', 'Delete Custom List(s)');
+  let promptMessage;
+  let confirmKeyword;
+
+  if (selectedLists.length === 1) {
+    promptMessage = `⚠️ Are you sure you wish to permanently DELETE the custom list "${selectedLists[0].name}"?\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE below.`;
+    confirmKeyword = 'delete';
+  } else {
+    const names = selectedLists.map(c => `- ${c.name}`).join('\n');
+    promptMessage = `⚠️ Are you sure you wish to permanently DELETE the following ${selectedLists.length} custom lists?\n\n${names}\n\nThis action cannot be undone.\n\nTo confirm, please type DELETE ALL below.`;
+    confirmKeyword = 'delete all';
+  }
+
+  const confirmationText = fPromptWithInput('Confirm Deletion', promptMessage);
+  if (confirmationText === null || confirmationText.toLowerCase().trim() !== confirmKeyword) {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
+    return;
+  }
+
+  // Execute Deletion
+  selectedLists.forEach(list => {
+    try {
+      fShowToast(`🗑️ Trashing file for ${list.name}...`, 'Deleting');
+      DriveApp.getFileById(list.id).setTrashed(true);
+    } catch (e) {
+      console.error(`Could not trash file with ID ${list.id} for list ${list.name}. It may have already been deleted. Error: ${e}`);
+    }
+  });
+
+  const destSheet = codexSS.getSheetByName(sheetName);
+  selectedLists.sort((a, b) => b.row - a.row).forEach(list => {
+    fDeleteTableRow(destSheet, list.row);
+  });
+
+  fEndToast();
+  const deletedNames = selectedLists.map(c => c.name).join(', ');
+  fShowMessage('✅ Success', `The following custom list(s) have been deleted:\n\n${deletedNames}`);
+} // End function fDeleteCustomList
+
+/* function fRenameCustomList
+   Purpose: The master workflow for renaming a player-owned custom ability list.
+   Assumptions: Run from the Codex menu.
+   Notes: Includes validation to ensure the user is the owner of the list.
+   @returns {void}
+*/
+function fRenameCustomList() {
+  fShowToast('⏳ Initializing rename...', 'Rename Custom List');
+  const ssKey = 'Codex';
+  const sheetName = 'CustomSources';
+  const codexSS = fGetCodexSpreadsheet();
+  const currentUser = Session.getActiveUser().getEmail();
+
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
+  const headerRow = rowTags.header;
+
+  const selectedLists = [];
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r] && arr[r][colTags.checkbox] === true) {
+      selectedLists.push({
+        row: r + 1, // 1-based row
+        name: arr[r][colTags.sourcename],
+        id: arr[r][colTags.sheetid],
+        owner: arr[r][colTags.owner],
+      });
+    }
+  }
+
+  // --- Validation ---
+  if (selectedLists.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the custom list you wish to rename.');
+    return;
+  }
+  if (selectedLists.length > 1) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Multiple lists selected. Please select only one list to rename.');
+    return;
+  }
+
+  const listToRename = selectedLists[0];
+
+  if (listToRename.owner !== currentUser) {
+    fEndToast();
+    fShowMessage('❌ Permission Denied', 'You can only rename custom ability lists that you own.');
+    return;
+  }
+  // --- End Validation ---
+
+  // Prompt for new name
+  const newName = fPromptWithInput('Rename Custom List', `Current Name: ${listToRename.name}\n\nPlease enter the new name for this list:`);
+  if (!newName) {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Rename operation was canceled.');
+    return;
+  }
+
+  // Execute the rename
+  fShowToast(`Renaming to "${newName}"...`, 'Rename Custom List');
+  try {
+    const file = DriveApp.getFileById(listToRename.id);
+    file.setName(newName);
+
+    const nameCell = codexSS.getSheetByName(sheetName).getRange(listToRename.row, colTags.sourcename + 1);
+    const url = nameCell.getRichTextValue().getLinkUrl();
+    const newLink = SpreadsheetApp.newRichTextValue().setText(newName).setLinkUrl(url).build();
+    nameCell.setRichTextValue(newLink);
+
+    fEndToast();
+    fShowMessage('✅ Success', `"${listToRename.name}" has been successfully renamed to "${newName}".`);
+  } catch (e) {
+    console.error(`Rename failed. Error: ${e}`);
+    fEndToast();
+    fShowMessage('❌ Error', 'An error occurred while trying to rename the file. It may have been deleted or you may no longer have permission to edit it.');
+  }
+} // End function fRenameCustomList
 
 /* function fCreateNewCustomList
    Purpose: Creates a new, named custom ability list from the master template and logs it in the Codex.

@@ -19,11 +19,13 @@ function fCreateCodexMenu() {
     .addItem('Older Legacy Version', 'fMenuCreateLegacyCharacter');
 
   const customSourcesMenu = SpreadsheetApp.getUi().createMenu('Manage Custom Sources')
-    .addItem('Create New Custom Ability List...', 'fMenuCreateCustomList') // <-- ADDED
-    .addSeparator() // <-- ADDED
+    .addItem('Create New Custom Ability List...', 'fMenuCreateCustomList')
+    .addItem('Rename Custom List...', 'fMenuRenameCustomList')
+    .addItem('Delete Custom List(s)...', 'fMenuDeleteCustomList')
+    .addSeparator()
     .addItem('Add New Source...', 'fMenuAddNewCustomSource');
 
-  SpreadsheetApp.getUi()
+  SpreadsheetApp.getUi() // <-- THIS WAS THE TYPO
     .createMenu('*** Flex ***')
     .addSubMenu(createMenu)
     .addItem('Rename Character', 'fMenuRenameCharacter')

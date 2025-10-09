@@ -16,7 +16,9 @@
 function run(command) {
   try {
     const commandMap = {
-      CreateCustomList: fCreateNewCustomList, // <-- ADDED
+      RenameCustomList: fRenameCustomList, // <-- ADDED
+      DeleteCustomList: fDeleteCustomList, // <-- ADDED
+      CreateCustomList: fCreateNewCustomList,
       ShareMyAbilities: fShareMyAbilities,
       SyncPowerChoices: fUpdatePowerTablesList,
       AddNewCustomSource: fAddNewCustomSource,
