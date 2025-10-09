@@ -16,10 +16,9 @@
 function run(command) {
   try {
     const commandMap = {
-      RenameCustomList: fRenameCustomList, // <-- ADDED
-      DeleteCustomList: fDeleteCustomList, // <-- ADDED
+      RenameCustomList: fRenameCustomList,
+      DeleteCustomList: fDeleteCustomList,
       CreateCustomList: fCreateNewCustomList,
-      ShareMyAbilities: fShareMyAbilities,
       SyncPowerChoices: fUpdatePowerTablesList,
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
@@ -31,7 +30,7 @@ function run(command) {
       CreateLegacyCharacter: fCreateLegacyCharacter,
       RenameCharacter: fRenameCharacter,
       DeleteCharacter: fDeleteCharacter,
-      ShowPlaceholder: fShowPlaceholderMessage,
+      ShowPlaceholder: fShowplaceholderMessage,
       BuildPowers: fBuildPowers,
       FilterPowers: fFilterPowers,
       PrepGameForPaper: fPrepGameForPaper,
