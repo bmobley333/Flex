@@ -16,7 +16,7 @@
 function fDeleteCustomList() {
   fShowToast('⏳ Initializing delete...', 'Delete Custom List(s)');
   const ssKey = 'Codex';
-  const sheetName = 'CustomSources';
+  const sheetName = 'Custom Abilities';
   const codexSS = fGetCodexSpreadsheet();
   const currentUser = Session.getActiveUser().getEmail();
 
@@ -102,7 +102,7 @@ function fDeleteCustomList() {
 function fRenameCustomList() {
   fShowToast('⏳ Initializing rename...', 'Rename Custom List');
   const ssKey = 'Codex';
-  const sheetName = 'CustomSources';
+  const sheetName = 'Custom Abilities';
   const codexSS = fGetCodexSpreadsheet();
   const currentUser = Session.getActiveUser().getEmail();
 
@@ -204,10 +204,10 @@ function fCreateNewCustomList() {
   }
   newCustFile.setName(listName);
 
-  // 4. Log the new list in the Codex's <CustomSources> sheet
+  // 4. Log the new list in the Codex's <Custom Abilities> sheet
   fShowToast('Logging new list in your Codex...', 'New Custom List');
   const ssKey = 'Codex';
-  const sheetName = 'CustomSources';
+  const sheetName = 'Custom Abilities';
   const codexSS = fGetCodexSpreadsheet();
   const destSheet = codexSS.getSheetByName(sheetName);
   const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
@@ -254,7 +254,7 @@ function fCreateNewCustomList() {
 function fShareCustomLists() {
   fShowToast('⏳ Initializing share...', 'Share Custom Lists');
   const ssKey = 'Codex';
-  const sheetName = 'CustomSources';
+  const sheetName = 'Custom Abilities';
   const codexSS = fGetCodexSpreadsheet();
   const currentUser = Session.getActiveUser().getEmail();
 
@@ -373,7 +373,7 @@ function fAddNewCustomSource() {
 
   // 3. Check for duplicates
   const ssKey = 'Codex';
-  const sheetName = 'CustomSources';
+  const sheetName = 'Custom Abilities';
   const codexSS = fGetCodexSpreadsheet();
   const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true);
   const headerRow = rowTags.header;
@@ -428,7 +428,7 @@ function fAddNewCustomSource() {
 } // End function fAddNewCustomSource
 
 /* function fAddOwnCustomAbilitiesSource
-   Purpose: Automatically finds the player's own 'Cust' file and logs it as the first entry in <CustomSources>.
+   Purpose: Automatically finds the player's own 'Cust' file and logs it as the first entry in <Custom Abilities>.
    Assumptions: This is run at the end of the initial setup, so the <MyVersions> sheet is populated.
    Notes: Ensures the player always has access to their own custom content.
    @returns {void}
@@ -440,7 +440,7 @@ function fAddOwnCustomAbilitiesSource() {
   const custId = fGetSheetId(g.CURRENT_VERSION, 'Cust');
 
   // 2. Get the destination sheet and its properties.
-  const destSheetName = 'CustomSources';
+  const destSheetName = 'Custom Abilities';
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName(destSheetName);
   const { arr, rowTags, colTags } = fGetSheetData('Codex', destSheetName, codexSS, true);

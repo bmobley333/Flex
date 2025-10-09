@@ -39,7 +39,7 @@ function fUpdatePowerTablesList() {
 
   // 1b. Get custom tables from all registered sources in the Codex.
   const codexSS = fGetCodexSpreadsheet();
-  const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'CustomSources', codexSS, true);
+  const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
   const sourcesHeader = sourcesRowTags.header;
 
   if (sourcesHeader !== undefined) {
@@ -195,7 +195,7 @@ function fFilterPowers() {
   // 2b. Fetch from Custom Sources
   const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
   if (selectedCustomTables.length > 0) {
-    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'CustomSources', codexSS, true);
+    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
     for (const customTable of selectedCustomTables) {
       const sourceInfo = sourcesArr.find(row => row[sourcesColTags.sourcename] === customTable.source);
       if (sourceInfo) {
