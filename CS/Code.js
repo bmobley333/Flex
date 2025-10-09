@@ -30,7 +30,7 @@ function onOpen() {
     }
   } else {
     SpreadsheetApp.getUi()
-      .createMenu('*** Flex ***')
+      .createMenu('💪 Flex')
       .addItem('▶️ Activate Flex Menus', 'fActivateMenus')
       .addToUi();
   }

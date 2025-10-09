@@ -16,7 +16,7 @@ function onOpen() {
     FlexLib.fCreateCustMenu();
   } else {
     SpreadsheetApp.getUi()
-      .createMenu('*** Flex ***')
+      .createMenu('💪 Flex')
       .addItem('▶️ Activate Flex Menus', 'fActivateMenus')
       .addToUi();
   }

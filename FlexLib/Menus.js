@@ -34,7 +34,7 @@ function fCreateCodexMenu() {
     .addItem('Add Sheet From ID', 'fMenuAddNewCustomSource');
 
   // --- Main Flex Menu ---
-  ui.createMenu('*** Flex ***')
+  ui.createMenu('💪 Flex')
     .addSubMenu(charactersMenu)
     .addSubMenu(customAbilitiesMenu)
     .addToUi();
@@ -52,7 +52,7 @@ function fCreateFlexMenu() {
     .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers');
 
   SpreadsheetApp.getUi()
-    .createMenu('*** Flex ***')
+    .createMenu('💪 Flex')
     .addSubMenu(filterMenu)
     .addToUi();
 } // End function fCreateFlexMenu
