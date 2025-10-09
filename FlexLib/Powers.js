@@ -13,6 +13,7 @@
    @returns {void}
 */
 function fUpdatePowerTablesList() {
+  fActivateSheetByName('Filter Powers');
   fShowToast('⏳ Syncing power tables...', 'Sync Power Tables');
 
   // --- Part 1: Aggregate All Power Table Information ---
@@ -20,14 +21,14 @@ function fUpdatePowerTablesList() {
   const customPowerTables = [];
 
   // 1a. Get standard tables from the PLAYER'S LOCAL DB copy.
-  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB'); // <-- THIS IS THE FIX
+  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
   if (dbId) {
     const sourceSS = SpreadsheetApp.openById(dbId);
     const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
     const headerRow = rowTags.header;
     if (headerRow !== undefined) {
       const tableNameCol = colTags.tablename;
-      const dbTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]))];
+      const dbTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
       dbTableNames.forEach(name => dbPowerTables.push({
         tableName: name,
         source: 'DB'
@@ -57,7 +58,7 @@ function fUpdatePowerTablesList() {
           const headerRow = rowTags.header;
           if (headerRow !== undefined) {
             const tableNameCol = colTags.tablename;
-            const customTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]))];
+            const customTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
             customTableNames.forEach(name => customPowerTables.push({
               tableName: `Cust - ${name}`,
               source: sourceName
@@ -72,7 +73,6 @@ function fUpdatePowerTablesList() {
   }
 
   // --- NEW SORTING LOGIC ---
-  // Sort each list independently, then combine them.
   dbPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
   customPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
   const allPowerTables = [...dbPowerTables, ...customPowerTables];
@@ -129,7 +129,7 @@ function fUpdatePowerTablesList() {
   }
 
   fEndToast();
-  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.`);
+  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.\n\nYou can now check the boxes for the power lists you want to use and then run "Filter Powers" again.`);
 } // End function fUpdatePowerTablesList
 
 
@@ -140,6 +140,7 @@ function fUpdatePowerTablesList() {
    @returns {void}
 */
 function fFilterPowers() {
+  fActivateSheetByName('Filter Powers');
   fShowToast('⏳ Filtering power lists...', 'Filter Powers');
 
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
@@ -148,6 +149,17 @@ function fFilterPowers() {
   // 1. Read the player's choices from the <Filter Powers> sheet.
   const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS, true);
   const choicesHeaderRow = choicesRowTags.header;
+
+  // --- NEW: Auto-load if the sheet is empty ---
+  const tableNameCol = choicesColTags.tablename;
+  const hasContent = choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol]);
+  if (!hasContent) {
+    fEndToast();
+    fUpdatePowerTablesList(); // This function will show its own toasts and final message
+    return; // Stop execution of this function
+  }
+  // --- END NEW ---
+
   if (choicesHeaderRow === undefined) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
@@ -169,8 +181,6 @@ function fFilterPowers() {
   let allPowersData = [];
   let dbHeader = [];
 
-  // --- REFACTORED LOGIC ---
-  // Get the DB structure (colTags) first, as it's the master template for all power rows.
   const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
   if (!dbId) {
     fEndToast();
@@ -180,7 +190,6 @@ function fFilterPowers() {
   const dbSS = SpreadsheetApp.openById(dbId);
   const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
   dbHeader = allDbPowers[dbRowTags.header];
-  // --- END REFACTOR ---
 
 
   // 2a. Fetch from the local DB if selected
@@ -209,7 +218,7 @@ function fFilterPowers() {
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomPowers = customSheetPowers
             .slice(custRowTags.header + 1)
-            .filter(row => row[dbColTags.tablename] === cleanTableName); // Use dbColTags here
+            .filter(row => row[dbColTags.tablename] === cleanTableName);
 
           filteredCustomPowers.forEach(row => {
             const dropDownValue = `Cust - ${row[dbColTags.tablename]} - ${row[dbColTags.abilityname]}⚡ (${row[dbColTags.usage]}, ${row[dbColTags.action]}) ➡ ${row[dbColTags.effect]}`;

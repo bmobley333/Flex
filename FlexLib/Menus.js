@@ -44,10 +44,13 @@ function fCreateCodexMenu() {
    @returns {void}
 */
 function fCreateFlexMenu() {
+  const filterMenu = SpreadsheetApp.getUi().createMenu('Filter Powers')
+    .addItem('Load All DB and Cust Powers', 'fMenuSyncPowerChoices')
+    .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers');
+
   SpreadsheetApp.getUi()
     .createMenu('*** Flex ***')
-    .addItem('Sync Power Choices 🔄', 'fMenuSyncPowerChoices')
-    .addItem('Filter Powers ⚡', 'fMenuFilterPowers')
+    .addSubMenu(filterMenu)
     .addToUi();
 } // End function fCreateFlexMenu
 

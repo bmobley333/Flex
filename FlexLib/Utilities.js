@@ -1,11 +1,25 @@
 /* global SpreadsheetApp, g */
-/* exported fShowMessage, fLoadSheetToArray, fNormalizeTags */
+/* exported fShowMessage, fLoadSheetToArray, fNormalizeTags, fActivateSheetByName */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - User Interface Utilities
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fActivateSheetByName
+   Purpose: Activates a sheet by its name, making it visible to the user.
+   Assumptions: The sheet with the given name exists in the active spreadsheet.
+   Notes: A generic helper to guide the user's focus.
+   @param {string} sheetName - The name of the sheet to activate.
+   @returns {void}
+*/
+function fActivateSheetByName(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (sheet) {
+    sheet.activate();
+  }
+} // End function fActivateSheetByName
 
 /* function fTrimSheet
    Purpose: Trims all empty rows and columns from the active sheet based on cell content.
