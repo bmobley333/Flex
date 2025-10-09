@@ -183,7 +183,7 @@ function fRenameCustomList() {
 function fCreateNewCustomList() {
   fShowToast('⏳ Initializing...', 'New Custom List');
 
-  // 1. Get the local Cust template ID
+  // 1. Get the local Cust template ID and destination folder.
   const localCustId = fGetSheetId(g.CURRENT_VERSION, 'Cust');
   if (!localCustId) {
     fEndToast();
@@ -191,16 +191,20 @@ function fCreateNewCustomList() {
     return;
   }
 
-  // 2. Get the destination folder and copy the template
+  const customAbilitiesFolder = fGetSubFolder('Custom Abilities');
+  if (!customAbilitiesFolder) {
+    fEndToast(); // fGetSubFolder shows its own error message.
+    return;
+  }
+
+  // 2. Copy the template.
   fShowToast('Copying template...', 'New Custom List');
-  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
-  const customAbilitiesFolder = fGetOrCreateFolder('Custom Abilities', parentFolder);
   const custTemplateFile = DriveApp.getFileById(localCustId);
   const newCustFile = custTemplateFile.makeCopy(customAbilitiesFolder);
   const newCustSS = SpreadsheetApp.openById(newCustFile.getId());
   fEmbedCodexId(newCustSS);
 
-  // 3. Prompt for a name
+  // 3. Prompt for a name.
   const listName = fPromptWithInput('Name Your List', 'Please enter a name for your new custom ability list (e.g., "My Homebrew Powers"):');
   if (!listName) {
     newCustFile.setTrashed(true); // Clean up if the user cancels
@@ -209,11 +213,11 @@ function fCreateNewCustomList() {
     return;
   }
 
-  // Apply versioning to the name
+  // Apply versioning to the name.
   const versionedListName = `v${g.CURRENT_VERSION} ${listName.replace(/^v\d+\s*/, '').trim()}`;
   newCustFile.setName(versionedListName);
 
-  // 4. Log the new list in the Codex's <Custom Abilities> sheet
+  // 4. Log the new list in the Codex's <Custom Abilities> sheet.
   fShowToast('Logging new list in your Codex...', 'New Custom List');
   const ssKey = 'Codex';
   const sheetName = 'Custom Abilities';
@@ -226,12 +230,12 @@ function fCreateNewCustomList() {
 
   const dataToWrite = [];
   dataToWrite[colTags.sheetid - 1] = newCustFile.getId();
-  dataToWrite[colTags.custabilitiesname - 1] = versionedListName; // <-- CHANGE HERE
-  dataToWrite[colTags.owner - 1] = 'Me'; // <-- CHANGE HERE
+  dataToWrite[colTags.custabilitiesname - 1] = versionedListName;
+  dataToWrite[colTags.owner - 1] = 'Me';
 
   const firstDataRowIndex = headerRow + 1;
   const templateRow = firstDataRowIndex + 1;
-  const nameCol = colTags.custabilitiesname; // <-- CHANGE HERE
+  const nameCol = colTags.custabilitiesname;
 
   if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][nameCol]) {
     targetRow = templateRow;
@@ -246,9 +250,8 @@ function fCreateNewCustomList() {
   const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
   targetRange.setValues([dataToWrite]);
 
-  // Create a hyperlink for the new entry
   const link = SpreadsheetApp.newRichTextValue().setText(versionedListName).setLinkUrl(newCustFile.getUrl()).build();
-  destSheet.getRange(targetRow, colTags.custabilitiesname + 1).setRichTextValue(link); // <-- CHANGE HERE
+  destSheet.getRange(targetRow, colTags.custabilitiesname + 1).setRichTextValue(link);
 
   fEndToast();
   fShowMessage('✅ Success', `Your new custom ability list "${listName}" has been created and added to your Codex.`);

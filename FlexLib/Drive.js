@@ -1,11 +1,53 @@
 /* global DriveApp, PropertiesService */
-/* exported fGetOrCreateFolder, fSyncVersionFiles */
+/* exported fGetOrCreateFolder, fSyncVersionFiles, fGetSubFolder */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Google Drive Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fGetSubFolder
+   Purpose: A robust "health check" function to find a required subfolder within the main Flex project folder.
+   Assumptions: The FlexFolderID is stored in the Codex's <Data> sheet.
+   Notes: Finds the main folder by ID to be resilient to moves/renames, then advises the user if subfolders are missing.
+   @param {string} subFolderName - The case-sensitive name of the subfolder to find (e.g., 'Characters').
+   @returns {GoogleAppsScript.Drive.Folder|null} The subfolder object, or null if it cannot be found.
+*/
+function fGetSubFolder(subFolderName) {
+  const codexSS = fGetCodexSpreadsheet();
+  const { arr, rowTags, colTags } = fGetSheetData('Codex', 'Data', codexSS);
+  const flexFolderIdRow = rowTags.flexfolderid;
+  const dataCol = colTags.data;
+
+  if (flexFolderIdRow === undefined || dataCol === undefined) {
+    fShowMessage('❌ Error', 'Could not find the `FlexFolderID` or `Data` tags in your <Data> sheet. Please run the setup again.');
+    return null;
+  }
+
+  const flexFolderId = arr[flexFolderIdRow][dataCol];
+  if (!flexFolderId) {
+    fShowMessage('❌ Error', 'The `FlexFolderID` is missing from your <Data> sheet. Please run the setup again.');
+    return null;
+  }
+
+  let mainFolder;
+  try {
+    mainFolder = DriveApp.getFolderById(flexFolderId);
+  } catch (e) {
+    fShowMessage('❌ Error', 'Could not access the main "💪 Flex" folder. It may have been deleted. Please run the setup again to restore it.');
+    return null;
+  }
+
+  const subFolders = mainFolder.getFoldersByName(subFolderName);
+  if (subFolders.hasNext()) {
+    return subFolders.next(); // Success!
+  } else {
+    // Advise the user on how to fix the problem.
+    const folderName = mainFolder.getName();
+    fShowMessage('ℹ️ Folder Not Found', `The "${subFolderName}" folder could not be found inside your main "${folderName}" folder.\n\nDid you accidentally move or rename it? Please ensure the folder exists with the correct name inside your project folder to continue.`);
+    return null;
+  }
+} // End function fGetSubFolder
 
 /* function fMoveFileToFolder
    Purpose: Moves a file to a specified folder if it's not already there.

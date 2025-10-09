@@ -16,16 +16,27 @@ function fInitialSetup() {
   const welcomeMessage = 'Welcome to Flex! This will perform a one-time setup to prepare your Player\'s Codex.\n\n⚠️ This process may take several minutes to complete. Please do not close this spreadsheet or navigate away until you see the "Setup Complete!" message.';
   fShowMessage('👋 Welcome!', welcomeMessage);
 
-  // 1. Create Folder Structure
+  // 1. Create Folder Structure & Store the Main Folder ID
   fShowToast('Creating Google Drive folders...', '⚙️ Setup');
-  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
+  const parentFolder = fGetOrCreateFolder('💪 Flex');
   fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fGetOrCreateFolder('Characters', parentFolder);
   fGetOrCreateFolder('Custom Abilities', parentFolder);
 
+  const codexSS = SpreadsheetApp.getActiveSpreadsheet();
+  const dataSheet = codexSS.getSheetByName('Data');
+  if (dataSheet) {
+    const { rowTags, colTags } = fGetSheetData('Codex', 'Data', codexSS, true);
+    const rowIndex = rowTags.flexfolderid;
+    const colIndex = colTags.data;
+    if (rowIndex !== undefined && colIndex !== undefined) {
+      dataSheet.getRange(rowIndex + 1, colIndex + 1).setValue(parentFolder.getId());
+    }
+  }
+
   // 2. Move and Rename this Codex
   fShowToast('Organizing your Codex file...', '⚙️ Setup');
-  const thisFile = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId());
+  const thisFile = DriveApp.getFileById(codexSS.getId());
   fMoveFileToFolder(thisFile, parentFolder);
   thisFile.setName("Player's Codex");
 
@@ -46,7 +57,7 @@ function fInitialSetup() {
 
   // 5. The setup is now complete. Custom abilities are created on-demand by the user.
   fEndToast();
-  const successMessage = 'Your Player\'s Codex is now ready to use.\n\nPlease bookmark this Player\'s Codex file (and you can also find it in your Google Drive under the "MetaScape Flex" folder).';
+  const successMessage = 'Your Player\'s Codex is now ready to use.\n\nPlease bookmark this Player\'s Codex file (and you can also find it in your Google Drive under the "💪 Flex" folder).';
   fShowMessage('✅ Setup Complete!', successMessage);
 } // End function fInitialSetup
 

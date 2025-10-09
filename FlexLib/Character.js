@@ -194,24 +194,27 @@ function fDeleteCharacter() {
    Assumptions: The required master files for the selected version have already been synced and logged in <MyVersions>.
    Notes: This is the final step in the character creation workflow.
    @param {string} version - The game version for the new character (e.g., '3').
-   @param {GoogleAppsScript.Drive.Folder} parentFolder - The "MetaScape Flex" folder object.
    @returns {void}
 */
-function fCreateNewCharacterSheet(version, parentFolder) {
-  // 1. Get the local CS template ID using the ID Management system
+function fCreateNewCharacterSheet(version) {
+  // 1. Get the local CS template ID and the destination folder.
   const localCsId = fGetSheetId(version, 'CS');
   if (!localCsId) {
     fShowMessage('❌ Error', `Could not find the local master Character Sheet for Version ${version}. Please try syncing versions again.`);
     return;
   }
 
-  // 2. Get the destination folder and copy the template
+  const charactersFolder = fGetSubFolder('Characters');
+  if (!charactersFolder) {
+    fEndToast();
+    return; // fGetSubFolder shows its own error message.
+  }
+
+  // 2. Copy the template.
   fShowToast('⏳ Creating a new character sheet...', 'New Character');
-  const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
   const csTemplateFile = DriveApp.getFileById(localCsId);
   const newCharFile = csTemplateFile.makeCopy(charactersFolder);
   const newCharSS = SpreadsheetApp.openById(newCharFile.getId());
-
   fEmbedCodexId(newCharSS);
 
   // Reposition <Paper> sheet for the player
@@ -236,6 +239,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   newCharFile.setName(versionedCharacterName);
 
   // 3. Log the new character in the Codex's <Characters> sheet
+  // (The rest of the function remains the same)
   const ssKey = 'Codex';
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
@@ -254,7 +258,7 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   dataToWrite[colTags.rules - 1] = `v${version} Rules`;
 
   const firstDataRowIndex = headerRow + 1;
-  const templateRow = firstDataRowIndex + 1; // This is the 1-based row number of our template
+  const templateRow = firstDataRowIndex + 1;
   const charNameCol = colTags.charname;
 
   if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][charNameCol]) {
@@ -262,9 +266,6 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   } else {
     targetRow = lastRow + 1;
     destSheet.insertRowsAfter(lastRow, 1);
-
-    // --- NEW LOGIC ---
-    // Copy the formatting from the template row to the new row.
     const formatSourceRange = destSheet.getRange(templateRow, 1, 1, destSheet.getMaxColumns());
     const formatDestRange = destSheet.getRange(targetRow, 1, 1, destSheet.getMaxColumns());
     formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
@@ -281,7 +282,6 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const targetRange = destSheet.getRange(targetRow, 2, 1, dataToWrite.length);
   targetRange.setValues([dataToWrite]);
 
-  // 4. Format the new row appropriately
   if (colTags.checkbox !== undefined) {
     destSheet.getRange(targetRow, colTags.checkbox + 1).insertCheckboxes();
   }
@@ -293,7 +293,6 @@ function fCreateNewCharacterSheet(version, parentFolder) {
   const rulesLink = SpreadsheetApp.newRichTextValue().setText(`v${version} Rules`).setLinkUrl(rulesUrl).build();
   destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
 
-  // 5. Final success message
   fEndToast();
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
   fShowMessage('Character Created!', successMessage);
@@ -394,8 +393,7 @@ function fCreateCharacterFromVersion(selectedVersion) {
   }
 
   // Create the new character sheet and log it.
-  const parentFolder = fGetOrCreateFolder('MetaScape Flex');
-  fCreateNewCharacterSheet(selectedVersion, parentFolder);
+  fCreateNewCharacterSheet(selectedVersion);
 } // End function fCreateCharacterFromVersion
 
 
