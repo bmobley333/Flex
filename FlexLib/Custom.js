@@ -183,11 +183,11 @@ function fRenameCustomList() {
 function fCreateNewCustomList() {
   fShowToast('⏳ Initializing...', 'New Custom List');
 
-  // 1. Get the local Cust template ID and destination folder.
-  const localCustId = fGetSheetId(g.CURRENT_VERSION, 'Cust');
-  if (!localCustId) {
+  // 1. Get the local Cust template file and destination folder.
+  const custTemplateFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'Cust');
+  if (!custTemplateFile) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find the local master Custom Abilities template. Please try running the initial setup again.');
+    fShowMessage('❌ Error', 'Could not find or restore the local master Custom Abilities template.');
     return;
   }
 
@@ -199,7 +199,6 @@ function fCreateNewCustomList() {
 
   // 2. Copy the template.
   fShowToast('Copying template...', 'New Custom List');
-  const custTemplateFile = DriveApp.getFileById(localCustId);
   const newCustFile = custTemplateFile.makeCopy(customAbilitiesFolder);
   const newCustSS = SpreadsheetApp.openById(newCustFile.getId());
   fEmbedCodexId(newCustSS);

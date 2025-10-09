@@ -1,10 +1,47 @@
 /* global fShowMessage, fBuildTagMaps, g, fPromptWithInput, fGetSheetId, fGetOrCreateFolder, fSyncVersionFiles, DriveApp, SpreadsheetApp, fCreateNewCharacterSheet */
-/* exported fCreateCharacter */
+/* exported fCreateCharacter, fUpdateCharacterRulesLinks */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Character Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/* function fUpdateCharacterRulesLinks
+   Purpose: Updates all hyperlinks in the <Characters> sheet for a specific rules version.
+   Assumptions: The <Characters> sheet exists and is tagged correctly.
+   Notes: This is called by the self-healing system when a master Rules file is restored.
+   @param {string} version - The version of the rules links to update (e.g., '3').
+   @param {string} newRulesId - The ID of the newly restored Rules document.
+   @returns {void}
+*/
+function fUpdateCharacterRulesLinks(version, newRulesId) {
+  fShowToast(`⚕️ Healing broken links for v${version} Rules...`, 'File Health Check');
+  const ssKey = 'Codex';
+  const sheetName = 'Characters';
+  const codexSS = fGetCodexSpreadsheet();
+  const destSheet = codexSS.getSheetByName(sheetName);
+
+  const { arr, rowTags, colTags } = fGetSheetData(ssKey, sheetName, codexSS, true); // Force refresh
+  const headerRow = rowTags.header;
+  if (headerRow === undefined) return; // Cannot proceed if sheet is malformed
+
+  const versionCol = colTags.version;
+  const rulesCol = colTags.rules;
+  if (versionCol === undefined || rulesCol === undefined) return;
+
+  const rulesUrl = `https://docs.google.com/document/d/${newRulesId}/`;
+  const rulesLinkText = `v${version} Rules`;
+  const newLink = SpreadsheetApp.newRichTextValue().setText(rulesLinkText).setLinkUrl(rulesUrl).build();
+
+  // Loop through all character rows
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    // If the character's version matches, update its rules link
+    if (String(arr[r][versionCol]) === version) {
+      destSheet.getRange(r + 1, rulesCol + 1).setRichTextValue(newLink);
+    }
+  }
+} // End function fUpdateCharacterRulesLinks
 
 /* function fRenameCharacter
    Purpose: The master orchestrator for the character renaming workflow.
@@ -197,22 +234,21 @@ function fDeleteCharacter() {
    @returns {void}
 */
 function fCreateNewCharacterSheet(version) {
-  // 1. Get the local CS template ID and the destination folder.
-  const localCsId = fGetSheetId(version, 'CS');
-  if (!localCsId) {
-    fShowMessage('❌ Error', `Could not find the local master Character Sheet for Version ${version}. Please try syncing versions again.`);
+  // 1. Get the local CS template file and the destination folder.
+  const csTemplateFile = fGetVerifiedLocalFile(version, 'CS');
+  if (!csTemplateFile) {
+    fShowMessage('❌ Error', `Could not find or restore the local master Character Sheet for Version ${version}.`);
     return;
   }
 
   const charactersFolder = fGetSubFolder('Characters');
   if (!charactersFolder) {
     fEndToast();
-    return; // fGetSubFolder shows its own error message.
+    return;
   }
 
   // 2. Copy the template.
   fShowToast('⏳ Creating a new character sheet...', 'New Character');
-  const csTemplateFile = DriveApp.getFileById(localCsId);
   const newCharFile = csTemplateFile.makeCopy(charactersFolder);
   const newCharSS = SpreadsheetApp.openById(newCharFile.getId());
   fEmbedCodexId(newCharSS);
@@ -239,7 +275,6 @@ function fCreateNewCharacterSheet(version) {
   newCharFile.setName(versionedCharacterName);
 
   // 3. Log the new character in the Codex's <Characters> sheet
-  // (The rest of the function remains the same)
   const ssKey = 'Codex';
   const sheetName = 'Characters';
   const codexSS = fGetCodexSpreadsheet();
@@ -288,10 +323,12 @@ function fCreateNewCharacterSheet(version) {
   const link = SpreadsheetApp.newRichTextValue().setText(versionedCharacterName).setLinkUrl(newCharFile.getUrl()).build();
   destSheet.getRange(targetRow, colTags.charname + 1).setRichTextValue(link);
 
-  const rulesId = fGetSheetId(version, 'Rules');
-  const rulesUrl = `https://docs.google.com/document/d/${rulesId}/`;
-  const rulesLink = SpreadsheetApp.newRichTextValue().setText(`v${version} Rules`).setLinkUrl(rulesUrl).build();
-  destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
+  const rulesFile = fGetVerifiedLocalFile(version, 'Rules'); // Use the new function here too
+  if (rulesFile) {
+    const rulesUrl = `https://docs.google.com/document/d/${rulesFile.getId()}/`;
+    const rulesLink = SpreadsheetApp.newRichTextValue().setText(`v${version} Rules`).setLinkUrl(rulesUrl).build();
+    destSheet.getRange(targetRow, colTags.rules + 1).setRichTextValue(rulesLink);
+  }
 
   fEndToast();
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;

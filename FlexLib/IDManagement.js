@@ -1,10 +1,70 @@
 /* global g, PropertiesService, SpreadsheetApp, fBuildTagMaps, fLoadSheetToArray */
-/* exported fGetSheetId, fLoadSheetIDsFromMyVersions */
+/* exported fGetSheetId, fLoadSheetIDsFromMyVersions, fGetVerifiedLocalFile */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - ID Management & Caching
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/* function fGetVerifiedLocalFile
+   Purpose: A robust gatekeeper to get a local file object, self-healing if the file is missing.
+   Assumptions: The file should exist in the player's <MyVersions> sheet.
+   Notes: This is the primary function for safely accessing any local master file (CS, DB, etc.).
+   @param {string} version - The version number of the file to retrieve.
+   @param {string} ssAbbr - The abbreviated name of the sheet (e.g., 'CS', 'DB').
+   @returns {GoogleAppsScript.Drive.File|null} The file object, or null if it cannot be found or restored.
+*/
+function fGetVerifiedLocalFile(version, ssAbbr) {
+  const localId = fGetSheetId(version, ssAbbr);
+  try {
+    // --- Happy Path ---
+    const file = DriveApp.getFileById(localId);
+    return file;
+  } catch (e) {
+    // --- Self-Heal Path ---
+    fShowToast(`⚠️ A core file (${ssAbbr}) is missing. Restoring...`, 'File Health Check');
+
+    const masterCopiesFolder = fGetSubFolder('Master Copies - DO NOT DELETE');
+    if (!masterCopiesFolder) {
+      fEndToast();
+      return null;
+    }
+
+    const masterId = fGetMasterSheetId(version, ssAbbr);
+    if (!masterId) {
+      fShowMessage('❌ Error', `Could not find the original master record for "${ssAbbr}" v${version} to restore it.`);
+      return null;
+    }
+
+    const fileName = `v${version} MASTER_${ssAbbr} - DO NOT DELETE`;
+    const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
+    const newId = newFile.getId();
+
+    const codexSS = fGetCodexSpreadsheet();
+    const myVersionsSheet = codexSS.getSheetByName('MyVersions');
+    const { arr, rowTags, colTags } = fGetSheetData('Codex', 'MyVersions', codexSS, true);
+    const headerRow = rowTags.header;
+
+    for (let r = headerRow + 1; r < arr.length; r++) {
+      if (String(arr[r][colTags.version]) === version && arr[r][colTags.ssabbr] === ssAbbr) {
+        myVersionsSheet.getRange(r + 1, colTags.ssid + 1).setValue(newId);
+        break;
+      }
+    }
+
+    fLoadSheetIDsFromMyVersions();
+    fShowToast(`✅ Successfully restored ${ssAbbr}!`, 'File Health Check', 5);
+
+    // --- NEW: Post-Heal Link Repair ---
+    if (ssAbbr === 'Rules') {
+      fUpdateCharacterRulesLinks(version, newId);
+    }
+    // --- END NEW ---
+
+    return newFile;
+  }
+} // End function fGetVerifiedLocalFile
 
 /* function fGetMasterSheetId
    Purpose: Gets a specific spreadsheet ID from the master <Versions> sheet.

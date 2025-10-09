@@ -21,9 +21,9 @@ function fUpdatePowerTablesList() {
   const customPowerTables = [];
 
   // 1a. Get standard tables from the PLAYER'S LOCAL DB copy.
-  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
-  if (dbId) {
-    const sourceSS = SpreadsheetApp.openById(dbId);
+  const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
+  if (dbFile) {
+    const sourceSS = SpreadsheetApp.open(dbFile);
     const { arr, rowTags, colTags } = fGetSheetData('DB', 'Powers', sourceSS);
     const headerRow = rowTags.header;
     if (headerRow !== undefined) {
@@ -35,17 +35,18 @@ function fUpdatePowerTablesList() {
       }));
     }
   } else {
-    fShowMessage('⚠️ Warning', 'Could not find your local "DB" spreadsheet ID. Standard powers will be missing.');
+    fShowMessage('⚠️ Warning', 'Could not find or restore your local "DB" spreadsheet. Standard powers will be missing.');
   }
 
   // 1b. Get custom tables from all registered sources in the Codex.
+  // (The rest of the function remains the same)
   const codexSS = fGetCodexSpreadsheet();
   const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
   const sourcesHeader = sourcesRowTags.header;
 
   if (sourcesHeader !== undefined) {
     const sourceIdCol = sourcesColTags.sheetid;
-    const sourceNameCol = sourcesColTags.custabilitiesname; // <-- CHANGE HERE
+    const sourceNameCol = sourcesColTags.custabilitiesname;
     for (let r = sourcesHeader + 1; r < sourcesArr.length; r++) {
       const sourceRow = sourcesArr[r];
       if (sourceRow && sourceRow[sourceIdCol]) {
@@ -72,13 +73,10 @@ function fUpdatePowerTablesList() {
     }
   }
 
-  // --- NEW SORTING LOGIC ---
   dbPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
   customPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
   const allPowerTables = [...dbPowerTables, ...customPowerTables];
 
-
-  // --- Part 2: Write the Aggregated Data to the Sheet ---
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Powers');
   if (!destSheet) {
@@ -95,7 +93,6 @@ function fUpdatePowerTablesList() {
     return;
   }
 
-  // Clear all old data
   const lastRow = destSheet.getLastRow();
   const firstDataRow = destHeaderRow + 2;
   if (lastRow >= firstDataRow) {
@@ -105,7 +102,6 @@ function fUpdatePowerTablesList() {
     }
   }
 
-  // Write the new data
   const newRowCount = allPowerTables.length;
   if (newRowCount > 0) {
     if (newRowCount > 1) {
@@ -150,15 +146,13 @@ function fFilterPowers() {
   const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS, true);
   const choicesHeaderRow = choicesRowTags.header;
 
-  // --- NEW: Auto-load if the sheet is empty ---
   const tableNameCol = choicesColTags.tablename;
   const hasContent = choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol]);
   if (!hasContent) {
     fEndToast();
-    fUpdatePowerTablesList(); // This function will show its own toasts and final message
-    return; // Stop execution of this function
+    fUpdatePowerTablesList();
+    return;
   }
-  // --- END NEW ---
 
   if (choicesHeaderRow === undefined) {
     fEndToast();
@@ -181,13 +175,13 @@ function fFilterPowers() {
   let allPowersData = [];
   let dbHeader = [];
 
-  const dbId = fGetSheetId(g.CURRENT_VERSION, 'DB');
-  if (!dbId) {
+  const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
+  if (!dbFile) {
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find your local "DB" file to get power data from. Please run initial setup.');
+    fShowMessage('❌ Error', 'Could not find or restore your local "DB" file to get power data from. Please run initial setup.');
     return;
   }
-  const dbSS = SpreadsheetApp.openById(dbId);
+  const dbSS = SpreadsheetApp.open(dbFile);
   const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
   dbHeader = allDbPowers[dbRowTags.header];
 
@@ -202,11 +196,12 @@ function fFilterPowers() {
   }
 
   // 2b. Fetch from Custom Sources
+  // (The rest of the function remains the same)
   const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
   if (selectedCustomTables.length > 0) {
     const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
     for (const customTable of selectedCustomTables) {
-      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source); // <-- CHANGE HERE
+      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
       if (sourceInfo) {
         const sourceId = sourceInfo[sourcesColTags.sheetid];
         fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Powers');
@@ -233,7 +228,6 @@ function fFilterPowers() {
     }
   }
 
-  // 3. Populate the <PowerDataCache> sheet
   const cacheSheet = csSS.getSheetByName('PowerDataCache');
   if (!cacheSheet) {
     fEndToast();
@@ -247,7 +241,6 @@ function fFilterPowers() {
   }
   fShowToast('⚡ Power data cached locally.', 'Filter Powers');
 
-  // 4. Build and apply the validation rule to the <Game> sheet.
   const filteredPowerList = allPowersData.map(row => row[dbColTags.dropdown]);
   const gameSheet = csSS.getSheetByName('Game');
   if (!gameSheet) {
