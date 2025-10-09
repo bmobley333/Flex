@@ -45,7 +45,7 @@ function fUpdatePowerTablesList() {
 
   if (sourcesHeader !== undefined) {
     const sourceIdCol = sourcesColTags.sheetid;
-    const sourceNameCol = sourcesColTags.sourcename;
+    const sourceNameCol = sourcesColTags.custabilitiesname; // <-- CHANGE HERE
     for (let r = sourcesHeader + 1; r < sourcesArr.length; r++) {
       const sourceRow = sourcesArr[r];
       if (sourceRow && sourceRow[sourceIdCol]) {
@@ -206,7 +206,7 @@ function fFilterPowers() {
   if (selectedCustomTables.length > 0) {
     const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
     for (const customTable of selectedCustomTables) {
-      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.sourcename] === customTable.source);
+      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source); // <-- CHANGE HERE
       if (sourceInfo) {
         const sourceId = sourceInfo[sourcesColTags.sheetid];
         fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Powers');

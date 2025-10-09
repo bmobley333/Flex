@@ -25,10 +25,10 @@ function fDeleteCustomList() {
 
   const selectedLists = [];
   for (let r = headerRow + 1; r < arr.length; r++) {
-    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.sourcename]) {
+    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.custabilitiesname]) { // <-- CHANGE HERE
       selectedLists.push({
         row: r + 1, // 1-based row
-        name: arr[r][colTags.sourcename],
+        name: arr[r][colTags.custabilitiesname], // <-- CHANGE HERE
         id: arr[r][colTags.sheetid],
         owner: arr[r][colTags.owner],
       });
@@ -42,8 +42,7 @@ function fDeleteCustomList() {
     return;
   }
 
-  // Verify ownership of ALL selected lists
-  const nonOwnedLists = selectedLists.filter(list => list.owner !== currentUser);
+  const nonOwnedLists = selectedLists.filter(list => list.owner !== 'Me'); // <-- CHANGE HERE
   if (nonOwnedLists.length > 0) {
     const nonOwnedNames = nonOwnedLists.map(list => list.name).join(', ');
     fEndToast();
@@ -114,9 +113,10 @@ function fRenameCustomList() {
     if (arr[r] && arr[r][colTags.checkbox] === true) {
       selectedLists.push({
         row: r + 1, // 1-based row
-        name: arr[r][colTags.sourcename],
+        name: arr[r][colTags.custabilitiesname], // <-- CHANGE HERE
         id: arr[r][colTags.sheetid],
         owner: arr[r][colTags.owner],
+        version: g.CURRENT_VERSION, // Assuming current version for simplicity
       });
     }
   }
@@ -135,7 +135,7 @@ function fRenameCustomList() {
 
   const listToRename = selectedLists[0];
 
-  if (listToRename.owner !== currentUser) {
+  if (listToRename.owner !== 'Me') { // <-- CHANGE HERE
     fEndToast();
     fShowMessage('❌ Permission Denied', 'You can only rename custom ability lists that you own.');
     return;
@@ -143,26 +143,30 @@ function fRenameCustomList() {
   // --- End Validation ---
 
   // Prompt for new name
-  const newName = fPromptWithInput('Rename Custom List', `Current Name: ${listToRename.name}\n\nPlease enter the new name for this list:`);
-  if (!newName) {
+  const newBaseName = fPromptWithInput('Rename Custom List', `Current Name: ${listToRename.name}\n\nPlease enter the new name for this list:`);
+  if (!newBaseName) {
     fEndToast();
     fShowMessage('ℹ️ Canceled', 'Rename operation was canceled.');
     return;
   }
 
+  // Process the new name (strip and re-apply correct version prefix)
+  const cleanedName = newBaseName.replace(/^v\d+\s*/, '').trim();
+  const finalName = `v${listToRename.version} ${cleanedName}`;
+
   // Execute the rename
-  fShowToast(`Renaming to "${newName}"...`, 'Rename Custom List');
+  fShowToast(`Renaming to "${finalName}"...`, 'Rename Custom List');
   try {
     const file = DriveApp.getFileById(listToRename.id);
-    file.setName(newName);
+    file.setName(finalName);
 
-    const nameCell = codexSS.getSheetByName(sheetName).getRange(listToRename.row, colTags.sourcename + 1);
+    const nameCell = codexSS.getSheetByName(sheetName).getRange(listToRename.row, colTags.custabilitiesname + 1); // <-- CHANGE HERE
     const url = nameCell.getRichTextValue().getLinkUrl();
-    const newLink = SpreadsheetApp.newRichTextValue().setText(newName).setLinkUrl(url).build();
+    const newLink = SpreadsheetApp.newRichTextValue().setText(finalName).setLinkUrl(url).build();
     nameCell.setRichTextValue(newLink);
 
     fEndToast();
-    fShowMessage('✅ Success', `"${listToRename.name}" has been successfully renamed to "${newName}".`);
+    fShowMessage('✅ Success', `"${listToRename.name}" has been successfully renamed to "${finalName}".`);
   } catch (e) {
     console.error(`Rename failed. Error: ${e}`);
     fEndToast();
@@ -193,6 +197,8 @@ function fCreateNewCustomList() {
   const customAbilitiesFolder = fGetOrCreateFolder('Custom Abilities', parentFolder);
   const custTemplateFile = DriveApp.getFileById(localCustId);
   const newCustFile = custTemplateFile.makeCopy(customAbilitiesFolder);
+  const newCustSS = SpreadsheetApp.openById(newCustFile.getId());
+  fEmbedCodexId(newCustSS);
 
   // 3. Prompt for a name
   const listName = fPromptWithInput('Name Your List', 'Please enter a name for your new custom ability list (e.g., "My Homebrew Powers"):');
@@ -202,7 +208,10 @@ function fCreateNewCustomList() {
     fShowMessage('ℹ️ Canceled', 'Creation of new custom ability list was canceled.');
     return;
   }
-  newCustFile.setName(listName);
+
+  // Apply versioning to the name
+  const versionedListName = `v${g.CURRENT_VERSION} ${listName.replace(/^v\d+\s*/, '').trim()}`;
+  newCustFile.setName(versionedListName);
 
   // 4. Log the new list in the Codex's <Custom Abilities> sheet
   fShowToast('Logging new list in your Codex...', 'New Custom List');
@@ -217,14 +226,14 @@ function fCreateNewCustomList() {
 
   const dataToWrite = [];
   dataToWrite[colTags.sheetid - 1] = newCustFile.getId();
-  dataToWrite[colTags.sourcename - 1] = listName;
-  dataToWrite[colTags.owner - 1] = Session.getActiveUser().getEmail();
+  dataToWrite[colTags.custabilitiesname - 1] = versionedListName; // <-- CHANGE HERE
+  dataToWrite[colTags.owner - 1] = 'Me'; // <-- CHANGE HERE
 
   const firstDataRowIndex = headerRow + 1;
   const templateRow = firstDataRowIndex + 1;
-  const sourceNameCol = colTags.sourcename;
+  const nameCol = colTags.custabilitiesname; // <-- CHANGE HERE
 
-  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][sourceNameCol]) {
+  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][nameCol]) {
     targetRow = templateRow;
   } else {
     targetRow = lastRow + 1;
@@ -238,8 +247,8 @@ function fCreateNewCustomList() {
   targetRange.setValues([dataToWrite]);
 
   // Create a hyperlink for the new entry
-  const link = SpreadsheetApp.newRichTextValue().setText(listName).setLinkUrl(newCustFile.getUrl()).build();
-  destSheet.getRange(targetRow, colTags.sourcename + 1).setRichTextValue(link);
+  const link = SpreadsheetApp.newRichTextValue().setText(versionedListName).setLinkUrl(newCustFile.getUrl()).build();
+  destSheet.getRange(targetRow, colTags.custabilitiesname + 1).setRichTextValue(link); // <-- CHANGE HERE
 
   fEndToast();
   fShowMessage('✅ Success', `Your new custom ability list "${listName}" has been created and added to your Codex.`);
@@ -264,9 +273,9 @@ function fShareCustomLists() {
 
   const selectedLists = [];
   for (let r = headerRow + 1; r < arr.length; r++) {
-    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.sourcename]) {
+    if (arr[r] && arr[r][colTags.checkbox] === true && arr[r][colTags.custabilitiesname]) { // <-- CHANGE HERE
       selectedLists.push({
-        name: arr[r][colTags.sourcename],
+        name: arr[r][colTags.custabilitiesname], // <-- CHANGE HERE
         id: arr[r][colTags.sheetid],
         owner: arr[r][colTags.owner],
       });
@@ -280,7 +289,7 @@ function fShareCustomLists() {
     return;
   }
 
-  const nonOwnedLists = selectedLists.filter(list => list.owner !== currentUser);
+  const nonOwnedLists = selectedLists.filter(list => list.owner !== 'Me'); // <-- CHANGE HERE
   if (nonOwnedLists.length > 0) {
     const nonOwnedNames = nonOwnedLists.map(list => list.name).join(', ');
     fEndToast();
@@ -361,6 +370,7 @@ function fAddNewCustomSource() {
   // 2. Verify the ID and permissions
   let sourceSS;
   let ownerEmail;
+  const currentUser = Session.getActiveUser().getEmail();
   try {
     fShowToast('Verifying ID and permissions...', 'Add New Source');
     sourceSS = SpreadsheetApp.openById(sourceId);
@@ -403,14 +413,14 @@ function fAddNewCustomSource() {
 
   const dataToWrite = [];
   dataToWrite[colTags.sheetid - 1] = sourceId;
-  dataToWrite[colTags.sourcename - 1] = sourceName;
-  dataToWrite[colTags.owner - 1] = ownerEmail;
+  dataToWrite[colTags.custabilitiesname - 1] = sourceName; // <-- CHANGE HERE
+  dataToWrite[colTags.owner - 1] = (ownerEmail === currentUser) ? 'Me' : ownerEmail; // <-- CHANGE HERE
 
   const firstDataRowIndex = headerRow + 1;
   const templateRow = firstDataRowIndex + 1; // 1-based template row
-  const sourceNameCol = colTags.sourcename;
+  const nameCol = colTags.custabilitiesname; // <-- CHANGE HERE
 
-  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][sourceNameCol]) {
+  if (arr.length <= firstDataRowIndex || !arr[firstDataRowIndex][nameCol]) {
     targetRow = templateRow;
   } else {
     targetRow = lastRow + 1;
@@ -450,7 +460,7 @@ function fAddOwnCustomAbilitiesSource() {
   // 3. Prepare the data to be written.
   const dataToWrite = [];
   dataToWrite[colTags.sheetid - 1] = custId;
-  dataToWrite[colTags.sourcename - 1] = 'My Custom Abilities';
+  dataToWrite[colTags.custabilitiesname - 1] = 'My Custom Abilities'; // <-- CHANGE HERE
   dataToWrite[colTags.owner - 1] = 'Me';
 
   // 4. Write the data to the first pre-formatted row.
