@@ -14,26 +14,29 @@
    @returns {void}
 */
 function fCreateCodexMenu() {
-  const createMenu = SpreadsheetApp.getUi().createMenu('Create New Character')
-    .addItem('Latest Version', 'fMenuCreateLatestCharacter')
-    .addItem('Older Legacy Version', 'fMenuCreateLegacyCharacter');
+  const ui = SpreadsheetApp.getUi();
 
-  const customSourcesMenu = SpreadsheetApp.getUi().createMenu('Manage Custom Sources')
-    .addItem('Create New Custom Ability List...', 'fMenuCreateCustomList')
-    .addItem('Rename Custom List...', 'fMenuRenameCustomList')
-    .addItem('Delete Custom List(s)...', 'fMenuDeleteCustomList')
+  // --- Characters Submenu ---
+  const charactersMenu = ui.createMenu('Characters')
+    .addItem('Create New', 'fMenuCreateLatestCharacter')
+    .addItem('Create Old Legacy Version', 'fMenuCreateLegacyCharacter')
+    .addItem('Rename', 'fMenuRenameCharacter')
     .addSeparator()
-    .addItem('Share Custom List(s)...', 'fMenuShareCustomLists')
-    .addItem('Add New Source...', 'fMenuAddNewCustomSource');
+    .addItem('Delete Character(s)', 'fMenuDeleteCharacter');
 
-  SpreadsheetApp.getUi() // <-- THIS WAS THE TYPO
-    .createMenu('*** Flex ***')
-    .addSubMenu(createMenu)
-    .addItem('Rename Character', 'fMenuRenameCharacter')
+  // --- Custom Abilities Submenu ---
+  const customAbilitiesMenu = ui.createMenu('Custom Abilities')
+    .addItem('Create New Sheet', 'fMenuCreateCustomList')
+    .addItem('Rename Sheet', 'fMenuRenameCustomList')
+    .addItem('Delete Sheet(s)', 'fMenuDeleteCustomList')
     .addSeparator()
-    .addSubMenu(customSourcesMenu)
-    .addSeparator()
-    .addItem('Delete Character(s)', 'fMenuDeleteCharacter')
+    .addItem('Share My Sheet(s)', 'fMenuShareCustomLists')
+    .addItem('Add Sheet From ID', 'fMenuAddNewCustomSource');
+
+  // --- Main Flex Menu ---
+  ui.createMenu('*** Flex ***')
+    .addSubMenu(charactersMenu)
+    .addSubMenu(customAbilitiesMenu)
     .addToUi();
 } // End function fCreateCodexMenu
 

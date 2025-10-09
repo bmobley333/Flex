@@ -11,10 +11,15 @@
    Assumptions: The command string passed matches a key in the commandMap.
    Notes: This provides a single entry point and a master try/catch for robust error handling.
    @param {string} command - The unique identifier for the command to execute.
+   @param {string} [sheetToActivate] - The optional name of the sheet to activate before running the command.
    @returns {void}
 */
-function run(command) {
+function run(command, sheetToActivate) {
   try {
+    if (sheetToActivate) {
+      fActivateSheetByName(sheetToActivate);
+    }
+
     const commandMap = {
       ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,

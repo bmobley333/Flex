@@ -98,10 +98,7 @@ function fMenuTest() {
    @returns {void}
 */
 function fMenuCreateLatestCharacter() {
-  // This first call to the library will trigger the auth prompt if needed,
-  // and then immediately display a toast once authorization is complete.
-  FlexLib.fShowToast('⏳ Initializing setup...', 'Welcome to Flex');
-  FlexLib.run('CreateLatestCharacter');
+  FlexLib.run('CreateLatestCharacter', 'Characters');
 } // End function fMenuCreateLatestCharacter
 
 /* function fMenuCreateLegacyCharacter
@@ -111,10 +108,7 @@ function fMenuCreateLatestCharacter() {
    @returns {void}
 */
 function fMenuCreateLegacyCharacter() {
-  // This first call to the library will trigger the auth prompt if needed,
-  // and then immediately display a toast once authorization is complete.
-  FlexLib.fShowToast('⏳ Initializing setup...', 'Welcome to Flex');
-  FlexLib.run('CreateLegacyCharacter');
+  FlexLib.run('CreateLegacyCharacter', 'Characters');
 } // End function fMenuCreateLegacyCharacter
 
 /* function fMenuRenameCharacter
@@ -124,7 +118,7 @@ function fMenuCreateLegacyCharacter() {
    @returns {void}
 */
 function fMenuRenameCharacter() {
-  FlexLib.run('RenameCharacter');
+  FlexLib.run('RenameCharacter', 'Characters');
 } // End function fMenuRenameCharacter
 
 /* function fMenuCreateCustomList
@@ -134,7 +128,7 @@ function fMenuRenameCharacter() {
    @returns {void}
 */
 function fMenuCreateCustomList() {
-  FlexLib.run('CreateCustomList');
+  FlexLib.run('CreateCustomList', 'Custom Abilities');
 } // End function fMenuCreateCustomList
 
 /* function fMenuAddNewCustomSource
@@ -144,7 +138,7 @@ function fMenuCreateCustomList() {
    @returns {void}
 */
 function fMenuAddNewCustomSource() {
-  FlexLib.run('AddNewCustomSource');
+  FlexLib.run('AddNewCustomSource', 'Custom Abilities');
 } // End function fMenuAddNewCustomSource
 
 
@@ -155,7 +149,7 @@ function fMenuAddNewCustomSource() {
    @returns {void}
 */
 function fMenuRenameCustomList() {
-  FlexLib.run('RenameCustomList');
+  FlexLib.run('RenameCustomList', 'Custom Abilities');
 } // End function fMenuRenameCustomList
 
 /* function fMenuDeleteCustomList
@@ -165,7 +159,7 @@ function fMenuRenameCustomList() {
    @returns {void}
 */
 function fMenuDeleteCustomList() {
-  FlexLib.run('DeleteCustomList');
+  FlexLib.run('DeleteCustomList', 'Custom Abilities');
 } // End function fMenuDeleteCustomList
 
 /* function fMenuShareCustomLists
@@ -175,7 +169,7 @@ function fMenuDeleteCustomList() {
    @returns {void}
 */
 function fMenuShareCustomLists() {
-  FlexLib.run('ShareCustomLists');
+  FlexLib.run('ShareCustomLists', 'Custom Abilities');
 } // End function fMenuShareCustomLists
 
 
@@ -186,7 +180,7 @@ function fMenuShareCustomLists() {
    @returns {void}
 */
 function fMenuDeleteCharacter() {
-  FlexLib.run('DeleteCharacter');
+  FlexLib.run('DeleteCharacter', 'Characters');
 } // End function fMenuDeleteCharacter
 
 /* function fMenuCreateCharacter

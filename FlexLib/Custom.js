@@ -324,8 +324,8 @@ function fShareCustomLists() {
     fShowToast('Sending notification email...', 'Share Custom Lists');
     const subject = `Flex TTRPG: ${selectedLists.length} custom list(s) have been shared with you!`;
     const listDetailsForEmail = selectedLists.map(list => `Name: ${list.name}.    ID below:\n${list.id}`).join('\n\n');
-    const body = `The player ${currentUser} has shared the following Flex Custom Abilities list(s) with you.\n\n` +
-      `To add them, open your Player's Codex, go to "Manage Custom Sources" > "Add New Source...", and paste the ID for each ONE list when prompted (For multiple lists, repeat for each ID below).\n\n` +
+    const body = `The player ${currentUser} has shared the following Flex Custom Abilities sheet(s) with you.\n\n` +
+      `To add them, open your Player's Codex, go to "*** Flex ***" > "Custom Abilities" > "Add Sheet From ID", and paste the ID for each sheet when prompted (For multiple sheets, repeat this for each ID below).\n\n` +
       `----------------------------------------\n\n` +
       `${listDetailsForEmail}\n\n` +
       `----------------------------------------`;
