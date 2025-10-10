@@ -148,13 +148,14 @@ function fVerifyAndPublish() {
     actionList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item),
   };
 
-  // 2. Get all powers to be verified
+  // 2. Get data and tags for both source and destination sheets
   const { arr: powersArr, rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss, true);
+  const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
   const powersHeaderRow = powersRowTags.header;
   const firstDataRowIndex = powersHeaderRow + 1;
 
   const feedbackData = [];
-  const validPowers = [];
+  const validPowersData = [];
   let passedCount = 0;
   let failedCount = 0;
 
@@ -170,34 +171,36 @@ function fVerifyAndPublish() {
 
     const validationResult = fValidatePowerRow(powerRow, powersColTags, validationLists);
 
-    // --- THIS IS THE FIX ---
     if (validationResult.isValid) {
-      // For valid rows, prepare them for publishing
       passedCount++;
-      const status = '✅ Passed';
-      feedbackData.push([status, '']); // Update feedback for the source sheet
+      feedbackData.push(['✅ Passed', '']);
 
-      // Create a clean copy of the row for publishing
-      const newValidRow = [...powerRow];
-      newValidRow[powersColTags.verifystatus] = status; // Ensure status is current
-      newValidRow[powersColTags.failedreason] = ''; // Clear any old reasons
-      newValidRow[powersColTags.source] = currentUserEmail; // Set the source email
+      // --- THIS IS THE NEW LOGIC ---
+      // Build the destination row by mapping data using tags
+      const newValidRow = [];
+      for (const tag in destColTags) {
+        const destIndex = destColTags[tag];
+        const sourceIndex = powersColTags[tag];
 
-      // Build the DropDown value
-      const tableName = newValidRow[powersColTags.tablename];
-      const abilityName = newValidRow[powersColTags.abilityname];
-      const usage = newValidRow[powersColTags.usage];
-      const action = newValidRow[powersColTags.action];
-      const effect = newValidRow[powersColTags.effect];
-      const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
-      newValidRow[powersColTags.dropdown] = dropDownValue;
+        if (sourceIndex !== undefined) {
+          newValidRow[destIndex] = powerRow[sourceIndex];
+        }
+      }
 
-      validPowers.push(newValidRow);
+      // Manually set/override calculated values in the destination row
+      newValidRow[destColTags.source] = currentUserEmail;
+      newValidRow[destColTags.verifystatus] = '✅ Passed';
+      const tableName = newValidRow[destColTags.tablename];
+      const abilityName = newValidRow[destColTags.abilityname];
+      const usage = newValidRow[destColTags.usage];
+      const action = newValidRow[destColTags.action];
+      const effect = newValidRow[destColTags.effect];
+      newValidRow[destColTags.dropdown] = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
+
+      validPowersData.push(newValidRow);
     } else {
-      // For failed rows, just prepare the feedback
       failedCount++;
-      const reason = validationResult.errors.join(' ');
-      feedbackData.push(['❌ Failed', reason]);
+      feedbackData.push(['❌ Failed', validationResult.errors.join(' ')]);
     }
   }
 
@@ -207,19 +210,23 @@ function fVerifyAndPublish() {
     sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2).setValues(feedbackData);
   }
 
-  // 5. Clear and publish the clean, dense array of valid powers
+  // 5. Clear and publish valid powers to <VerifiedPowers>
   fShowToast('⏳ Publishing valid powers...', 'Verify & Publish');
-  const { rowTags: destRowTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
-  const destHeaderRow = destRowTags.header;
+  const destHeaderRow = fGetSheetData('Cust', 'VerifiedPowers', ss).rowTags.header;
   const destFirstDataRow = destHeaderRow + 2;
   const lastRow = destSheet.getLastRow();
-  // Clear the entire data range of the destination sheet
   if (lastRow >= destFirstDataRow) {
     destSheet.getRange(destFirstDataRow, 1, lastRow - destFirstDataRow + 1, destSheet.getMaxColumns()).clearContent();
   }
-  // Write ONLY the valid powers. This prevents blank rows.
-  if (validPowers.length > 0) {
-    destSheet.getRange(destFirstDataRow, 1, validPowers.length, validPowers[0].length).setValues(validPowers);
+  if (validPowersData.length > 0) {
+    const destRange = destSheet.getRange(destFirstDataRow, 1, validPowersData.length, destSheet.getMaxColumns());
+    const outputArr = destRange.getValues();
+    validPowersData.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        outputArr[rowIndex][colIndex] = cell;
+      });
+    });
+    destRange.setValues(outputArr);
   }
 
   // 6. Display the final summary report
