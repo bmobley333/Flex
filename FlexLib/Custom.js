@@ -79,14 +79,13 @@ function fDeleteSelectedPowers() {
     return;
   }
 
-  // --- THIS IS THE FIX ---
   // 1. Find all checked rows, regardless of content
   const selectedRows = [];
   for (let r = headerRow + 1; r < arr.length; r++) {
     if (arr[r] && arr[r][colTags.checkbox] === true) {
       selectedRows.push({
-        row: r + 1, // 1-based row
-        name: arr[r][colTags.abilityname] || '', // Use name or empty string
+        row: r + 1,
+        name: arr[r][colTags.abilityname] || '',
       });
     }
   }
@@ -106,12 +105,10 @@ function fDeleteSelectedPowers() {
   let confirmKeyword = 'delete';
 
   if (namedPowers.length > 0) {
-    const names = namedPowers.map(p => `- ${p.name}`).join('\n');
-    promptMessage += `\n${names}\n`;
+    promptMessage += `\n${namedPowers.map(p => `- ${p.name}`).join('\n')}\n`;
   }
   if (unnamedCount > 0) {
-    const plural = unnamedCount > 1 ? 's' : '';
-    promptMessage += `\n- ${unnamedCount} unnamed/blank power row${plural}\n`;
+    promptMessage += `\n- ${unnamedCount} unnamed/blank power row${unnamedCount > 1 ? 's' : ''}\n`;
   }
   promptMessage += '\nThis action cannot be undone.';
 
@@ -129,15 +126,34 @@ function fDeleteSelectedPowers() {
     return;
   }
 
-  // 3. Delete the spreadsheet rows
+  // 3. Delete the spreadsheet rows and track the results
   fShowToast('🗑️ Deleting rows...', 'Delete Selected Powers');
+  let clearedCount = 0;
+  let deletedCount = 0;
   selectedRows.sort((a, b) => b.row - a.row).forEach(power => {
-    fDeleteTableRow(destSheet, power.row);
+    const result = fDeleteTableRow(destSheet, power.row);
+    if (result === 'cleared') {
+      clearedCount++;
+    } else {
+      deletedCount++;
+    }
   });
 
-  // 4. Final success message
+  // 4. Craft the final, intelligent success message
   fEndToast();
-  fShowMessage('✅ Success', `Successfully deleted ${selectedRows.length} selected row(s).`);
+  let successMessage = '';
+  if (deletedCount > 0) {
+    successMessage += `Successfully deleted ${deletedCount} power(s).`;
+  }
+  if (clearedCount > 0) {
+    if (successMessage) successMessage += '\n\n'; // Add a separator
+    successMessage += 'ℹ️ The blank template row was cleared. It remains visible to preserve formatting for when you add new powers.';
+  }
+  if (!successMessage) {
+    successMessage = '✅ Operation complete.'; // Fallback
+  }
+
+  fShowMessage('Deletion Complete', successMessage);
 } // End function fDeleteSelectedPowers
 
 /* function fDeleteCustomList

@@ -9,10 +9,10 @@
 /* function fDeleteTableRow
    Purpose: Deletes a row from a tagged table using Header-based logic.
    Assumptions: The sheet has a table with a 'Header' row tag. The rowNum is 1-based.
-   Notes: This is the master helper for safe row deletion.
+   Notes: This is the master helper for safe row deletion. It now returns the action taken.
    @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - The sheet object containing the table.
    @param {number} rowNum - The 1-based number of the row to delete.
-   @returns {void}
+   @returns {string} The action taken: 'deleted' or 'cleared'.
 */
 function fDeleteTableRow(sheet, rowNum) {
   const lastRow = sheet.getLastRow();
@@ -28,22 +28,21 @@ function fDeleteTableRow(sheet, rowNum) {
   if (headerRow === -1) {
     console.error(`fDeleteTableRow could not find a 'Header' tag in sheet: ${sheet.getName()}`);
     sheet.deleteRow(rowNum); // Fallback to a simple delete
-    return;
+    return 'deleted';
   }
 
   // Case 1: The table has only one data row (or is empty).
   // Instead of deleting the row (which removes formatting), we clear its content.
   if (lastRow <= headerRow + 1) {
-    // Clear from column B to the end of the sheet
     const rangeToClear = sheet.getRange(rowNum, 2, 1, sheet.getLastColumn() - 1);
     rangeToClear.clearContent();
-    // Also uncheck the box if it exists
     sheet.getRange(rowNum, 1, 1, sheet.getMaxColumns()).uncheck();
-    return;
+    return 'cleared'; // Return the 'cleared' status
   }
 
   // Default Case: There are multiple data rows. Safely delete the entire row.
   sheet.deleteRow(rowNum);
+  return 'deleted'; // Return the 'deleted' status
 } // End function fDeleteTableRow
 
 
