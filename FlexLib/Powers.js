@@ -6,17 +6,13 @@
 // Start - Power List Generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* function fUpdatePowerTablesList
-   Purpose: Updates the <Filter Powers> sheet with a unique list of all TableNames from the PLAYER'S LOCAL DB and all registered custom sources.
-   Assumptions: The user is running this from a Character Sheet.
-   Notes: Aggregates from multiple sources and sorts them into logical groups.
-   @returns {void}
+/* function fGetAllPowerTablesList
+   Purpose: A helper function to get a definitive, aggregated list of all available power tables from DB and Custom sources.
+   Assumptions: None.
+   Notes: This is the central source of truth for what power tables currently exist.
+   @returns {{allPowerTables: Array<{tableName: string, source: string}>}} An object containing the aggregated list.
 */
-function fUpdatePowerTablesList() {
-  fActivateSheetByName('Filter Powers');
-  fShowToast('⏳ Syncing power tables...', 'Sync Power Tables');
-
-  // --- Part 1: Aggregate All Power Table Information ---
+function fGetAllPowerTablesList() {
   const dbPowerTables = [];
   const customPowerTables = [];
 
@@ -29,46 +25,32 @@ function fUpdatePowerTablesList() {
     if (headerRow !== undefined) {
       const tableNameCol = colTags.tablename;
       const dbTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
-      dbTableNames.forEach(name => dbPowerTables.push({
-        tableName: name,
-        source: 'DB'
-      }));
+      dbTableNames.forEach(name => dbPowerTables.push({ tableName: name, source: 'DB' }));
     }
-  } else {
-    fShowMessage('⚠️ Warning', 'Could not find or restore your local "DB" spreadsheet. Standard powers will be missing.');
   }
 
   // 1b. Get custom tables from all registered sources in the Codex.
   const codexSS = fGetCodexSpreadsheet();
   const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
   const sourcesHeader = sourcesRowTags.header;
-
   if (sourcesHeader !== undefined) {
-    const sourceIdCol = sourcesColTags.sheetid;
-    const sourceNameCol = sourcesColTags.custabilitiesname;
     for (let r = sourcesHeader + 1; r < sourcesArr.length; r++) {
       const sourceRow = sourcesArr[r];
-      if (sourceRow && sourceRow[sourceIdCol]) {
-        const sourceId = sourceRow[sourceIdCol];
-        const sourceName = sourceRow[sourceNameCol];
-        fShowToast(`Fetching from "${sourceName}"...`, 'Sync Power Tables');
+      if (sourceRow && sourceRow[sourcesColTags.sheetid]) {
+        const sourceId = sourceRow[sourcesColTags.sheetid];
+        const sourceName = sourceRow[sourcesColTags.custabilitiesname];
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
-          // --- THIS IS THE FIX ---
-          // Read from the clean, published data sheet, not the working sheet.
           const { arr, rowTags, colTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
           const headerRow = rowTags.header;
           if (headerRow !== undefined) {
             const tableNameCol = colTags.tablename;
             const customTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
-            customTableNames.forEach(name => customPowerTables.push({
-              tableName: `Cust - ${name}`,
-              source: sourceName
-            }));
+            customTableNames.forEach(name => customPowerTables.push({ tableName: `Cust - ${name}`, source: sourceName }));
           }
         } catch (e) {
+          // Fail silently during the health check
           console.error(`Could not access custom source "${sourceName}" with ID ${sourceId}. Error: ${e}`);
-          fShowMessage('⚠️ Warning', `Could not access the custom source "${sourceName}". It may have been deleted or un-shared. Skipping.`);
         }
       }
     }
@@ -76,7 +58,20 @@ function fUpdatePowerTablesList() {
 
   dbPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
   customPowerTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
-  const allPowerTables = [...dbPowerTables, ...customPowerTables];
+  return { allPowerTables: [...dbPowerTables, ...customPowerTables] };
+} // End function fGetAllPowerTablesList
+
+/* function fUpdatePowerTablesList
+   Purpose: Updates the <Filter Powers> sheet with a unique list of all TableNames from the PLAYER'S LOCAL DB and all registered custom sources.
+   Assumptions: The user is running this from a Character Sheet.
+   Notes: Aggregates from multiple sources and sorts them into logical groups.
+   @returns {void}
+*/
+function fUpdatePowerTablesList() {
+  fActivateSheetByName('Filter Powers');
+  fShowToast('⏳ Syncing power tables...', 'Sync Power Tables');
+
+  const { allPowerTables } = fGetAllPowerTablesList();
 
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Powers');
@@ -143,27 +138,56 @@ function fFilterPowers() {
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
   const codexSS = fGetCodexSpreadsheet();
 
-  // 1. Read the player's choices from the <Filter Powers> sheet.
+  // --- NEW Health Check Logic ---
+  fShowToast('⚕️ Verifying power sources...', 'Filter Powers');
+  const { allPowerTables } = fGetAllPowerTablesList(); // Get a fresh list of ALL valid tables
+  const validTableNames = new Set(allPowerTables.map(t => t.tableName));
+
+  const filterSheet = csSS.getSheetByName('Filter Powers');
   const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS, true);
   const choicesHeaderRow = choicesRowTags.header;
 
-  const tableNameCol = choicesColTags.tablename;
-  const hasContent = choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol]);
+  const orphanRows = [];
+  for (let r = choicesHeaderRow + 1; r < choicesArr.length; r++) {
+    const tableName = choicesArr[r][choicesColTags.tablename];
+    if (tableName && !validTableNames.has(tableName)) {
+      orphanRows.push({ row: r + 1, name: tableName });
+    }
+  }
+
+  if (orphanRows.length > 0) {
+    fShowToast('🧹 Cleaning up stale entries...', 'Filter Powers');
+    orphanRows.sort((a, b) => b.row - a.row).forEach(orphan => {
+      fDeleteTableRow(filterSheet, orphan.row);
+    });
+    const orphanNames = orphanRows.map(o => `- ${o.name}`).join('\n');
+    fShowMessage('ℹ️ List Cleaned', `The following power tables could no longer be found and have been removed from your list:\n\n${orphanNames}`);
+    // After cleaning, we must re-read the sheet to continue
+    fGetSheetData('CS', 'Filter Powers', csSS, true);
+  }
+  // --- END Health Check ---
+
+  // 1. Read the player's choices from the (potentially cleaned) <Filter Powers> sheet.
+  const { arr: finalChoicesArr, rowTags: finalChoicesRowTags, colTags: finalChoicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS);
+  const finalChoicesHeaderRow = finalChoicesRowTags.header;
+
+  const tableNameCol = finalChoicesColTags.tablename;
+  const hasContent = finalChoicesArr.slice(finalChoicesHeaderRow + 1).some(row => row[tableNameCol]);
   if (!hasContent) {
     fEndToast();
     fUpdatePowerTablesList();
     return;
   }
 
-  if (choicesHeaderRow === undefined) {
+  if (finalChoicesHeaderRow === undefined) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
     return;
   }
-  const selectedTables = choicesArr
-    .slice(choicesHeaderRow + 1)
-    .filter(row => row[choicesColTags.isactive] === true)
-    .map(row => ({ tableName: row[choicesColTags.tablename], source: row[choicesColTags.source] }));
+  const selectedTables = finalChoicesArr
+    .slice(finalChoicesHeaderRow + 1)
+    .filter(row => row[finalChoicesColTags.isactive] === true)
+    .map(row => ({ tableName: row[finalChoicesColTags.tablename], source: row[finalChoicesColTags.source] }));
 
   if (selectedTables.length === 0) {
     fEndToast();
@@ -215,8 +239,6 @@ function fFilterPowers() {
             .slice(custRowTags.header + 1)
             .filter(row => row[custColTags.tablename] === cleanTableName);
 
-          // --- THIS IS THE FIX ---
-          // Map the 13-column custom data to the 10-column DB structure.
           const mappedCustomPowers = filteredCustomPowers.map(row => {
             const newRow = [];
             newRow[dbColTags.dropdown] = row[custColTags.dropdown];
@@ -248,7 +270,6 @@ function fFilterPowers() {
   }
   cacheSheet.clear();
   if (allPowersData.length > 0) {
-    // Now all rows in allPowersData will have the same number of columns as dbHeader.
     const dataToCache = [dbHeader, ...allPowersData];
     cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
   }

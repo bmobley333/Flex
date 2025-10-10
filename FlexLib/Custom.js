@@ -175,19 +175,15 @@ function fVerifyAndPublish() {
       passedCount++;
       feedbackData.push(['✅ Passed', '']);
 
-      // --- THIS IS THE NEW LOGIC ---
-      // Build the destination row by mapping data using tags
       const newValidRow = [];
       for (const tag in destColTags) {
         const destIndex = destColTags[tag];
         const sourceIndex = powersColTags[tag];
-
         if (sourceIndex !== undefined) {
           newValidRow[destIndex] = powerRow[sourceIndex];
         }
       }
 
-      // Manually set/override calculated values in the destination row
       newValidRow[destColTags.source] = currentUserEmail;
       newValidRow[destColTags.verifystatus] = '✅ Passed';
       const tableName = newValidRow[destColTags.tablename];
@@ -221,9 +217,9 @@ function fVerifyAndPublish() {
   if (validPowersData.length > 0) {
     const destRange = destSheet.getRange(destFirstDataRow, 1, validPowersData.length, destSheet.getMaxColumns());
     const outputArr = destRange.getValues();
-    validPowersData.forEach((row, rowIndex) => {
-      row.forEach((cell, colIndex) => {
-        outputArr[rowIndex][colIndex] = cell;
+    validPowersData.forEach((rowIndex, r) => {
+      rowIndex.forEach((cell, c) => {
+        outputArr[r][c] = cell;
       });
     });
     destRange.setValues(outputArr);
@@ -231,7 +227,11 @@ function fVerifyAndPublish() {
 
   // 6. Display the final summary report
   fEndToast();
-  const message = `Verification complete.\n\n✅ ${passedCount} powers passed and were published.\n❌ ${failedCount} powers failed. Please see the 'FailedReason' column for details.`;
+  let message = `Verification complete.\n\n✅ ${passedCount} powers passed and were published.`;
+  // --- THIS IS THE FIX ---
+  if (failedCount > 0) {
+    message += `\n❌ ${failedCount} powers failed. Please see the 'FailedReason' column for details.`;
+  }
   fShowMessage('✅ Verification Complete', message);
 } // End function fVerifyAndPublish
 
