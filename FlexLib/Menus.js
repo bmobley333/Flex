@@ -73,11 +73,17 @@ function fCreateGenericMenus(context) {
 /* function fCreateCustMenu
    Purpose: Creates the main custom menu for the Custom Abilities spreadsheet.
    Assumptions: This is called from an onOpen trigger in a Cust sheet.
-   Notes: This menu is currently empty as sharing has been moved to the Codex.
+   Notes: This menu provides tools for managing powers within the sheet.
    @returns {void}
 */
 function fCreateCustMenu() {
-  // This menu is intentionally left empty.
+  const powersMenu = SpreadsheetApp.getUi().createMenu('⚡ Powers')
+    .addItem('🗑️ Delete Selected Powers', 'fMenuDeleteSelectedPowers');
+
+  SpreadsheetApp.getUi()
+    .createMenu('💪 Flex')
+    .addSubMenu(powersMenu)
+    .addToUi();
 } // End function fCreateCustMenu
 
 

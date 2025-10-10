@@ -6,6 +6,139 @@
 // Start - Custom Abilities Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* global SpreadsheetApp, fGetSheetData */
+/* exported fApplyPowerValidations */
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// End - n/a
+// Start - Custom Abilities Management
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* function fApplyPowerValidations
+   Purpose: Reads validation lists from <PowerValidationLists> and applies them as dropdowns to the <Powers> sheet.
+   Assumptions: The script is running from a spreadsheet that contains both a <Powers> and a <PowerValidationLists> sheet.
+   Notes: This is the definitive function for programmatically creating data validation dropdowns to guide user input.
+   @returns {void}
+*/
+function fApplyPowerValidations() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const powersSheet = ss.getSheetByName('Powers');
+  if (!powersSheet) return; // Exit silently if the sheet doesn't exist
+
+  // 1. Get the validation data
+  const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'PowerValidationLists', ss);
+  const valHeaderRow = valRowTags.header;
+  if (valHeaderRow === undefined) return; // Exit silently if no header
+
+  // 2. Extract the validation lists into clean arrays
+  const typeList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(item => item);
+  const subTypeList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item);
+  const usageList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.usage]).filter(item => item);
+  const actionList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item);
+
+  // 3. Get the destination <Powers> sheet data to find column locations
+  const { rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss);
+  const powersHeaderRow = powersRowTags.header;
+  const firstDataRow = powersHeaderRow + 2; // Start applying validation on the first data row
+  const lastRow = powersSheet.getMaxRows();
+  const numRows = lastRow - firstDataRow + 1;
+
+  if (powersHeaderRow === undefined || numRows <= 0) return;
+
+  // 4. Build and apply the data validation rules
+  const typeRule = SpreadsheetApp.newDataValidation().requireValueInList(typeList, true).setAllowInvalid(false).build();
+  const subTypeRule = SpreadsheetApp.newDataValidation().requireValueInList(subTypeList, true).setAllowInvalid(false).build();
+  const usageRule = SpreadsheetApp.newDataValidation().requireValueInList(usageList, true).setAllowInvalid(true).build(); // Allow custom usage
+  const actionRule = SpreadsheetApp.newDataValidation().requireValueInList(actionList, true).setAllowInvalid(false).build();
+
+  powersSheet.getRange(firstDataRow, powersColTags.type + 1, numRows).setDataValidation(typeRule);
+  powersSheet.getRange(firstDataRow, powersColTags.subtype + 1, numRows).setDataValidation(subTypeRule);
+  powersSheet.getRange(firstDataRow, powersColTags.usage + 1, numRows).setDataValidation(usageRule);
+  powersSheet.getRange(firstDataRow, powersColTags.action + 1, numRows).setDataValidation(actionRule);
+} // End function fApplyPowerValidations
+
+
+/* function fDeleteSelectedPowers
+   Purpose: The master workflow for deleting one or more powers from the active <Powers> sheet.
+   Assumptions: Run from a Cust sheet menu. The <Powers> sheet has a CheckBox column.
+   Notes: Includes validation and uses the robust fDeleteTableRow helper to preserve formatting.
+   @returns {void}
+*/
+function fDeleteSelectedPowers() {
+  fShowToast('⏳ Initializing delete...', 'Delete Selected Powers');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = 'Powers';
+  const destSheet = ss.getSheetByName(sheetName);
+
+  const { arr, rowTags, colTags } = fGetSheetData('Cust', sheetName, ss, true);
+  const headerRow = rowTags.header;
+
+  if (headerRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'The <Powers> sheet is missing a "Header" row tag.');
+    return;
+  }
+
+  // --- THIS IS THE FIX ---
+  // 1. Find all checked rows, regardless of content
+  const selectedRows = [];
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r] && arr[r][colTags.checkbox] === true) {
+      selectedRows.push({
+        row: r + 1, // 1-based row
+        name: arr[r][colTags.abilityname] || '', // Use name or empty string
+      });
+    }
+  }
+
+  // 2. Validate selection and get confirmation
+  if (selectedRows.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the power(s) you wish to delete.');
+    return;
+  }
+
+  fShowToast('Waiting for your confirmation...', 'Delete Selected Powers');
+
+  const namedPowers = selectedRows.filter(p => p.name);
+  const unnamedCount = selectedRows.length - namedPowers.length;
+  let promptMessage = '⚠️ Are you sure you wish to permanently DELETE the following?\n';
+  let confirmKeyword = 'delete';
+
+  if (namedPowers.length > 0) {
+    const names = namedPowers.map(p => `- ${p.name}`).join('\n');
+    promptMessage += `\n${names}\n`;
+  }
+  if (unnamedCount > 0) {
+    const plural = unnamedCount > 1 ? 's' : '';
+    promptMessage += `\n- ${unnamedCount} unnamed/blank power row${plural}\n`;
+  }
+  promptMessage += '\nThis action cannot be undone.';
+
+  if (selectedRows.length > 1) {
+    promptMessage += '\n\nTo confirm, please type DELETE ALL below.';
+    confirmKeyword = 'delete all';
+  } else {
+    promptMessage += '\n\nTo confirm, please type DELETE below.';
+  }
+
+  const confirmationText = fPromptWithInput('Confirm Deletion', promptMessage);
+  if (confirmationText === null || confirmationText.toLowerCase().trim() !== confirmKeyword) {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
+    return;
+  }
+
+  // 3. Delete the spreadsheet rows
+  fShowToast('🗑️ Deleting rows...', 'Delete Selected Powers');
+  selectedRows.sort((a, b) => b.row - a.row).forEach(power => {
+    fDeleteTableRow(destSheet, power.row);
+  });
+
+  // 4. Final success message
+  fEndToast();
+  fShowMessage('✅ Success', `Successfully deleted ${selectedRows.length} selected row(s).`);
+} // End function fDeleteSelectedPowers
 
 /* function fDeleteCustomList
    Purpose: The master workflow for deleting one or more player-owned custom ability lists.
