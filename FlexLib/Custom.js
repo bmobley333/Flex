@@ -48,7 +48,8 @@ function fApplyPowerValidations() {
   // 4. Build and apply the data validation rules
   const typeRule = SpreadsheetApp.newDataValidation().requireValueInList(typeList, true).setAllowInvalid(false).build();
   const subTypeRule = SpreadsheetApp.newDataValidation().requireValueInList(subTypeList, true).setAllowInvalid(false).build();
-  const usageRule = SpreadsheetApp.newDataValidation().requireValueInList(usageList, true).setAllowInvalid(true).build(); // Allow custom usage
+  // --- THIS IS THE FIX ---
+  const usageRule = SpreadsheetApp.newDataValidation().requireValueInList(usageList, true).setAllowInvalid(false).build();
   const actionRule = SpreadsheetApp.newDataValidation().requireValueInList(actionList, true).setAllowInvalid(false).build();
 
   powersSheet.getRange(firstDataRow, powersColTags.type + 1, numRows).setDataValidation(typeRule);
@@ -56,6 +57,176 @@ function fApplyPowerValidations() {
   powersSheet.getRange(firstDataRow, powersColTags.usage + 1, numRows).setDataValidation(usageRule);
   powersSheet.getRange(firstDataRow, powersColTags.action + 1, numRows).setDataValidation(actionRule);
 } // End function fApplyPowerValidations
+
+/* function fValidatePowerRow
+   Purpose: Validates a single row of data from a <Powers> sheet.
+   Assumptions: The validation lists have been loaded and passed in.
+   Notes: This is the core rules engine for custom power validation.
+   @param {Array<string>} powerRow - The array of data for a single power.
+   @param {object} colTags - The column tag map for the sheet.
+   @param {object} validationLists - An object containing arrays of valid values (typeList, subTypeList, actionList).
+   @returns {{isValid: boolean, errors: Array<string>}} An object indicating if the row is valid and a list of errors.
+*/
+function fValidatePowerRow(powerRow, colTags, validationLists) {
+  const errors = [];
+
+  // --- NEW, STRICTER RULES ---
+  // Rule 1: Type must exist and be valid
+  const type = powerRow[colTags.type];
+  if (!type || !validationLists.typeList.includes(type)) {
+    errors.push(`Type must be one of: ${validationLists.typeList.join(', ')}.`);
+  }
+
+  // Rule 2: SubType must exist and be valid
+  const subType = powerRow[colTags.subtype];
+  if (!subType || !validationLists.subTypeList.includes(subType)) {
+    errors.push(`SubType must be one of: ${validationLists.subTypeList.join(', ')}.`);
+  }
+
+  // Rule 3: TableName must exist and end with "Powers"
+  const tableName = powerRow[colTags.tablename];
+  if (!tableName) {
+    errors.push('TableName cannot be empty.');
+  } else if (!tableName.endsWith('Powers')) {
+    errors.push('TableName must end with the word "Powers" (e.g., "My Awesome Powers").');
+  }
+
+  // Rule 4: Usage must exist and be valid
+  const usage = powerRow[colTags.usage];
+  if (!usage || !validationLists.usageList.includes(usage)) {
+    errors.push(`Usage must be one of: ${validationLists.usageList.join(', ')}.`);
+  }
+
+  // Rule 5: Action must exist and be valid
+  const action = powerRow[colTags.action];
+  if (!action || !validationLists.actionList.includes(action)) {
+    errors.push(`Action must be one of: ${validationLists.actionList.join(', ')}.`);
+  }
+
+  // Rule 6: AbilityName must exist
+  if (!powerRow[colTags.abilityname]) {
+    errors.push('AbilityName cannot be empty.');
+  }
+
+  // Rule 7: Effect must exist
+  if (!powerRow[colTags.effect]) {
+    errors.push('Effect cannot be empty.');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors: errors,
+  };
+} // End function fValidatePowerRow
+
+
+/* function fVerifyAndPublish
+   Purpose: The master workflow for validating and publishing custom powers.
+   Assumptions: Run from a Cust sheet. Reads from <Powers>, writes feedback, and copies valid rows to <VerifiedPowers>.
+   Notes: This is the definitive gatekeeper for ensuring custom power data integrity.
+   @returns {void}
+*/
+function fVerifyAndPublish() {
+  fShowToast('⏳ Verifying abilities...', 'Verify & Publish');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = ss.getSheetByName('Powers');
+  const destSheet = ss.getSheetByName('VerifiedPowers');
+  const currentUserEmail = Session.getActiveUser().getEmail();
+
+  // 1. Get validation lists first
+  const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'PowerValidationLists', ss);
+  const valHeaderRow = valRowTags.header;
+  if (valHeaderRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find the <PowerValidationLists> sheet or its "Header" tag.');
+    return;
+  }
+  const validationLists = {
+    typeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(item => item),
+    subTypeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item),
+    usageList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.usage]).filter(item => item),
+    actionList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item),
+  };
+
+  // 2. Get all powers to be verified
+  const { arr: powersArr, rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss, true);
+  const powersHeaderRow = powersRowTags.header;
+  const firstDataRowIndex = powersHeaderRow + 1;
+
+  const feedbackData = [];
+  const validPowers = [];
+  let passedCount = 0;
+  let failedCount = 0;
+
+  // 3. Loop, validate, and prepare feedback/data
+  fShowToast('⏳ Validating each power...', 'Verify & Publish');
+  for (let r = firstDataRowIndex; r < powersArr.length; r++) {
+    const powerRow = powersArr[r];
+    const isRowBlank = powerRow.every(cell => cell === '');
+    if (isRowBlank) {
+      feedbackData.push(['', '']);
+      continue;
+    }
+
+    const validationResult = fValidatePowerRow(powerRow, powersColTags, validationLists);
+
+    // --- THIS IS THE FIX ---
+    if (validationResult.isValid) {
+      // For valid rows, prepare them for publishing
+      passedCount++;
+      const status = '✅ Passed';
+      feedbackData.push([status, '']); // Update feedback for the source sheet
+
+      // Create a clean copy of the row for publishing
+      const newValidRow = [...powerRow];
+      newValidRow[powersColTags.verifystatus] = status; // Ensure status is current
+      newValidRow[powersColTags.failedreason] = ''; // Clear any old reasons
+      newValidRow[powersColTags.source] = currentUserEmail; // Set the source email
+
+      // Build the DropDown value
+      const tableName = newValidRow[powersColTags.tablename];
+      const abilityName = newValidRow[powersColTags.abilityname];
+      const usage = newValidRow[powersColTags.usage];
+      const action = newValidRow[powersColTags.action];
+      const effect = newValidRow[powersColTags.effect];
+      const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
+      newValidRow[powersColTags.dropdown] = dropDownValue;
+
+      validPowers.push(newValidRow);
+    } else {
+      // For failed rows, just prepare the feedback
+      failedCount++;
+      const reason = validationResult.errors.join(' ');
+      feedbackData.push(['❌ Failed', reason]);
+    }
+  }
+
+  // 4. Write the feedback to the <Powers> sheet
+  if (feedbackData.length > 0) {
+    sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2).clearContent();
+    sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2).setValues(feedbackData);
+  }
+
+  // 5. Clear and publish the clean, dense array of valid powers
+  fShowToast('⏳ Publishing valid powers...', 'Verify & Publish');
+  const { rowTags: destRowTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
+  const destHeaderRow = destRowTags.header;
+  const destFirstDataRow = destHeaderRow + 2;
+  const lastRow = destSheet.getLastRow();
+  // Clear the entire data range of the destination sheet
+  if (lastRow >= destFirstDataRow) {
+    destSheet.getRange(destFirstDataRow, 1, lastRow - destFirstDataRow + 1, destSheet.getMaxColumns()).clearContent();
+  }
+  // Write ONLY the valid powers. This prevents blank rows.
+  if (validPowers.length > 0) {
+    destSheet.getRange(destFirstDataRow, 1, validPowers.length, validPowers[0].length).setValues(validPowers);
+  }
+
+  // 6. Display the final summary report
+  fEndToast();
+  const message = `Verification complete.\n\n✅ ${passedCount} powers passed and were published.\n❌ ${failedCount} powers failed. Please see the 'FailedReason' column for details.`;
+  fShowMessage('✅ Verification Complete', message);
+} // End function fVerifyAndPublish
 
 
 /* function fDeleteSelectedPowers

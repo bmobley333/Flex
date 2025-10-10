@@ -78,6 +78,8 @@ function fCreateGenericMenus(context) {
 */
 function fCreateCustMenu() {
   const powersMenu = SpreadsheetApp.getUi().createMenu('⚡ Powers')
+    .addItem('✅ Verify & Publish Powers', 'fMenuVerifyAndPublish')
+    .addSeparator()
     .addItem('🗑️ Delete Selected Powers', 'fMenuDeleteSelectedPowers');
 
   SpreadsheetApp.getUi()

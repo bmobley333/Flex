@@ -39,7 +39,6 @@ function fUpdatePowerTablesList() {
   }
 
   // 1b. Get custom tables from all registered sources in the Codex.
-  // (The rest of the function remains the same)
   const codexSS = fGetCodexSpreadsheet();
   const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
   const sourcesHeader = sourcesRowTags.header;
@@ -55,7 +54,9 @@ function fUpdatePowerTablesList() {
         fShowToast(`Fetching from "${sourceName}"...`, 'Sync Power Tables');
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
-          const { arr, rowTags, colTags } = fGetSheetData(`Cust_${sourceId}`, 'Powers', customSS);
+          // --- THIS IS THE FIX ---
+          // Read from the clean, published data sheet, not the working sheet.
+          const { arr, rowTags, colTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
           const headerRow = rowTags.header;
           if (headerRow !== undefined) {
             const tableNameCol = colTags.tablename;
@@ -196,7 +197,6 @@ function fFilterPowers() {
   }
 
   // 2b. Fetch from Custom Sources
-  // (The rest of the function remains the same)
   const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
   if (selectedCustomTables.length > 0) {
     const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
@@ -207,19 +207,31 @@ function fFilterPowers() {
         fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Powers');
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
-          const { arr: customSheetPowers, rowTags: custRowTags } = fGetSheetData(`Cust_${sourceId}`, 'Powers', customSS);
+          const { arr: customSheetPowers, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
           if (dbHeader.length === 0) dbHeader = customSheetPowers[custRowTags.header];
 
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomPowers = customSheetPowers
             .slice(custRowTags.header + 1)
-            .filter(row => row[dbColTags.tablename] === cleanTableName);
+            .filter(row => row[custColTags.tablename] === cleanTableName);
 
-          filteredCustomPowers.forEach(row => {
-            const dropDownValue = `Cust - ${row[dbColTags.tablename]} - ${row[dbColTags.abilityname]}⚡ (${row[dbColTags.usage]}, ${row[dbColTags.action]}) ➡ ${row[dbColTags.effect]}`;
-            row[dbColTags.dropdown] = dropDownValue;
+          // --- THIS IS THE FIX ---
+          // Map the 13-column custom data to the 10-column DB structure.
+          const mappedCustomPowers = filteredCustomPowers.map(row => {
+            const newRow = [];
+            newRow[dbColTags.dropdown] = row[custColTags.dropdown];
+            newRow[dbColTags.type] = row[custColTags.type];
+            newRow[dbColTags.subtype] = row[custColTags.subtype];
+            newRow[dbColTags.tablename] = row[custColTags.tablename];
+            newRow[dbColTags.source] = row[custColTags.source];
+            newRow[dbColTags.usage] = row[custColTags.usage];
+            newRow[dbColTags.action] = row[custColTags.action];
+            newRow[dbColTags.abilityname] = row[custColTags.abilityname];
+            newRow[dbColTags.effect] = row[custColTags.effect];
+            return newRow;
           });
-          allPowersData = allPowersData.concat(filteredCustomPowers);
+
+          allPowersData = allPowersData.concat(mappedCustomPowers);
         } catch (e) {
           console.error(`Could not access custom source "${customTable.source}". Error: ${e}`);
           fShowMessage('⚠️ Warning', `Could not access the custom source "${customTable.source}". Skipping.`);
@@ -236,6 +248,7 @@ function fFilterPowers() {
   }
   cacheSheet.clear();
   if (allPowersData.length > 0) {
+    // Now all rows in allPowersData will have the same number of columns as dbHeader.
     const dataToCache = [dbHeader, ...allPowersData];
     cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
   }

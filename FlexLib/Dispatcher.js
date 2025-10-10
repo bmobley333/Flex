@@ -25,6 +25,7 @@ function run(command, sheetToActivate) {
       RenameCustomList: fRenameCustomList,
       DeleteCustomList: fDeleteCustomList,
       DeleteSelectedPowers: fDeleteSelectedPowers,
+      VerifyAndPublish: fVerifyAndPublish,
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: fUpdatePowerTablesList,
       AddNewCustomSource: fAddNewCustomSource,
