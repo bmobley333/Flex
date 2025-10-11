@@ -17,7 +17,7 @@ function fCreateCodexMenu() {
   const ui = SpreadsheetApp.getUi();
 
   // --- Characters Submenu ---
-  const charactersMenu = ui.createMenu('Characters')
+  const charactersMenu = ui.createMenu('👤 Characters')
     .addItem('Create New', 'fMenuCreateLatestCharacter')
     .addItem('Create Old Legacy Version', 'fMenuCreateLegacyCharacter')
     .addItem('Rename', 'fMenuRenameCharacter')
@@ -25,7 +25,7 @@ function fCreateCodexMenu() {
     .addItem('Delete Character(s)', 'fMenuDeleteCharacter');
 
   // --- Custom Abilities Submenu ---
-  const customAbilitiesMenu = ui.createMenu('Custom Abilities')
+  const customAbilitiesMenu = ui.createMenu('⚡ Custom Abilities')
     .addItem('Create New Sheet', 'fMenuCreateCustomList')
     .addItem('Rename Sheet', 'fMenuRenameCustomList')
     .addItem('Delete Sheet(s)', 'fMenuDeleteCustomList')
@@ -47,7 +47,7 @@ function fCreateCodexMenu() {
    @returns {void}
 */
 function fCreateFlexMenu() {
-  const filterMenu = SpreadsheetApp.getUi().createMenu('Filter Powers')
+  const filterMenu = SpreadsheetApp.getUi().createMenu('⚡ Filter Powers')
     .addItem('Load All DB and Cust Powers', 'fMenuSyncPowerChoices')
     .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers');
 
