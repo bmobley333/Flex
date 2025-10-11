@@ -241,7 +241,7 @@ function fCreateNewCharacterSheet(version) {
     return;
   }
 
-  const charactersFolder = fGetSubFolder('Characters');
+  const charactersFolder = fGetSubFolder('characterfolderid', 'Characters');
   if (!charactersFolder) {
     fEndToast();
     return;

@@ -25,9 +25,10 @@ function fGetVerifiedLocalFile(version, ssAbbr) {
     // --- Self-Heal Path ---
     fShowToast(`⚠️ A core file (${ssAbbr}) is missing. Restoring...`, 'File Health Check');
 
-    const masterCopiesFolder = fGetSubFolder('Master Copies - DO NOT DELETE');
+    const masterCopiesFolder = fGetSubFolder('mastercopiesfolderid', 'Master Copies');
     if (!masterCopiesFolder) {
       fEndToast();
+      // fGetSubFolder will show its own error, so we can just exit here.
       return null;
     }
 
@@ -37,7 +38,7 @@ function fGetVerifiedLocalFile(version, ssAbbr) {
       return null;
     }
 
-    const fileName = `v${version} MASTER_${ssAbbr} - DO NOT DELETE`;
+    const fileName = `v${version} MASTER_${ssAbbr}`;
     const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
     const newId = newFile.getId();
 

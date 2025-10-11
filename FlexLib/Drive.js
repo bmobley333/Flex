@@ -7,45 +7,64 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* function fGetSubFolder
-   Purpose: A robust "health check" function to find a required subfolder within the main Flex project folder.
-   Assumptions: The FlexFolderID is stored in the Codex's <Data> sheet.
-   Notes: Finds the main folder by ID to be resilient to moves/renames, then advises the user if subfolders are missing.
-   @param {string} subFolderName - The case-sensitive name of the subfolder to find (e.g., 'Characters').
-   @returns {GoogleAppsScript.Drive.Folder|null} The subfolder object, or null if it cannot be found.
+   Purpose: A robust, self-healing "health check" to get a required subfolder using its stored ID.
+   Assumptions: The FlexFolderID and the specific subfolder's ID are stored in the Codex's <Data> sheet.
+   Notes: This is the definitive gatekeeper for all subfolder access. If a folder is missing, it recreates it.
+   @param {string} folderTag - The row tag for the folder ID in the <Data> sheet (e.g., 'characterfolderid').
+   @param {string} defaultFolderName - The user-facing name to give the folder if it needs to be recreated (e.g., 'Characters').
+   @returns {GoogleAppsScript.Drive.Folder|null} The subfolder object, or null if a critical error occurs.
 */
-function fGetSubFolder(subFolderName) {
+function fGetSubFolder(folderTag, defaultFolderName) {
   const codexSS = fGetCodexSpreadsheet();
-  const { arr, rowTags, colTags } = fGetSheetData('Codex', 'Data', codexSS);
-  const flexFolderIdRow = rowTags.flexfolderid;
+  const dataSheet = codexSS.getSheetByName('Data');
+  const { arr, rowTags, colTags } = fGetSheetData('Codex', 'Data', codexSS, true); // Force refresh
   const dataCol = colTags.data;
 
-  if (flexFolderIdRow === undefined || dataCol === undefined) {
-    fShowMessage('❌ Error', 'Could not find the `FlexFolderID` or `Data` tags in your <Data> sheet. Please run the setup again.');
+  // 1. Get the Main Flex Folder first, as it's the parent for everything.
+  const flexFolderIdRow = rowTags.flexfolderid;
+  if (flexFolderIdRow === undefined) {
+    fShowMessage('❌ Error', 'Could not find the `FlexFolderID` tag in your <Data> sheet. Please run the setup again.');
     return null;
   }
-
   const flexFolderId = arr[flexFolderIdRow][dataCol];
-  if (!flexFolderId) {
-    fShowMessage('❌ Error', 'The `FlexFolderID` is missing from your <Data> sheet. Please run the setup again.');
-    return null;
-  }
-
   let mainFolder;
   try {
     mainFolder = DriveApp.getFolderById(flexFolderId);
   } catch (e) {
-    fShowMessage('❌ Error', 'Could not access the main "💪 Flex" folder. It may have been deleted. Please run the setup again to restore it.');
+    fShowMessage('❌ Error', 'Could not access the main "💪 My Flex" folder. It may have been deleted. Please run the setup again to restore it.');
     return null;
   }
 
-  const subFolders = mainFolder.getFoldersByName(subFolderName);
-  if (subFolders.hasNext()) {
-    return subFolders.next(); // Success!
-  } else {
-    // Advise the user on how to fix the problem.
-    const folderName = mainFolder.getName();
-    fShowMessage('ℹ️ Folder Not Found', `The "${subFolderName}" folder could not be found inside your main "${folderName}" folder.\n\nDid you accidentally move or rename it? Please ensure the folder exists with the correct name inside your project folder to continue.`);
+  // 2. Get the specific subfolder's ID.
+  const subFolderIdRow = rowTags[folderTag];
+  if (subFolderIdRow === undefined) {
+    fShowMessage('❌ Error', `Could not find the folder tag "${folderTag}" in your <Data> sheet. Your Codex may be out of date.`);
     return null;
+  }
+  const subFolderId = arr[subFolderIdRow][dataCol];
+
+  // 3. Try to access the folder by its ID.
+  if (subFolderId) {
+    try {
+      // --- Happy Path ---
+      return DriveApp.getFolderById(subFolderId);
+    } catch (e) {
+      // --- Self-Heal Path ---
+      // The ID is logged but the folder was deleted. Recreate it.
+      fShowToast(`⏳ The "${defaultFolderName}" folder was missing. Restoring it for you...`, 'System Health');
+      const newFolder = mainFolder.createFolder(defaultFolderName);
+      const newFolderId = newFolder.getId();
+      dataSheet.getRange(subFolderIdRow + 1, dataCol + 1).setValue(newFolderId);
+      return newFolder;
+    }
+  } else {
+    // --- Self-Heal Path (First Run) ---
+    // The ID was never logged. Create the folder for the first time.
+    fShowToast(`⏳ Creating the "${defaultFolderName}" folder for you...`, 'System Health');
+    const newFolder = mainFolder.createFolder(defaultFolderName);
+    const newFolderId = newFolder.getId();
+    dataSheet.getRange(subFolderIdRow + 1, dataCol + 1).setValue(newFolderId);
+    return newFolder;
   }
 } // End function fGetSubFolder
 
@@ -103,7 +122,7 @@ function fGetOrCreateFolder(folderName, parentFolder = null) {
    @returns {void}
 */
 function fSyncVersionFiles(version, parentFolder, filesToSync) {
-  const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
+  const masterCopiesFolder = fGetOrCreateFolder('Master Copies', parentFolder);
   const properties = PropertiesService.getScriptProperties();
   const localCache = JSON.parse(properties.getProperty('localFileCache') || '{}');
 
@@ -120,7 +139,7 @@ function fSyncVersionFiles(version, parentFolder, filesToSync) {
       const masterId = filesToSync[ssAbbr].ssid;
       if (!masterId) return; // Skip if the ID doesn't exist for some reason
 
-      const fileName = `MASTER_${ssAbbr} - DO NOT DELETE`;
+      const fileName = `MASTER_${ssAbbr}`;
       fShowToast(`⏳ Copying ${ssAbbr} file...`, 'Syncing Files');
       const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
       localCache[version][ssAbbr] = newFile.getId();

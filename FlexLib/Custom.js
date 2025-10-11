@@ -518,7 +518,7 @@ function fCreateNewCustomList() {
     return;
   }
 
-  const customAbilitiesFolder = fGetSubFolder('Custom Abilities');
+  const customAbilitiesFolder = fGetSubFolder('custabilfolderid', 'Custom Abilities');
   if (!customAbilitiesFolder) {
     fEndToast(); // fGetSubFolder shows its own error message.
     return;

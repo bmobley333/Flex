@@ -16,21 +16,31 @@ function fInitialSetup() {
   const welcomeMessage = 'Welcome to Flex! This will perform a one-time setup to prepare your Player\'s Codex.\n\n⚠️ This process may take several minutes to complete. Please do not close this spreadsheet or navigate away until you see the "Setup Complete!" message.';
   fShowMessage('👋 Welcome!', welcomeMessage);
 
-  // 1. Create Folder Structure & Store the Main Folder ID
+  // 1. Create Folder Structure & Store Folder IDs
   fShowToast('Creating Google Drive folders...', '⚙️ Setup');
   const parentFolder = fGetOrCreateFolder('💪 My Flex');
-  fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
-  fGetOrCreateFolder('Characters', parentFolder);
-  fGetOrCreateFolder('Custom Abilities', parentFolder);
+  const masterCopiesFolder = fGetOrCreateFolder('Master Copies', parentFolder);
+  const charactersFolder = fGetOrCreateFolder('Characters', parentFolder);
+  const customAbilitiesFolder = fGetOrCreateFolder('Custom Abilities', parentFolder);
 
   const codexSS = SpreadsheetApp.getActiveSpreadsheet();
   const dataSheet = codexSS.getSheetByName('Data');
   if (dataSheet) {
     const { rowTags, colTags } = fGetSheetData('Codex', 'Data', codexSS, true);
-    const rowIndex = rowTags.flexfolderid;
-    const colIndex = colTags.data;
-    if (rowIndex !== undefined && colIndex !== undefined) {
-      dataSheet.getRange(rowIndex + 1, colIndex + 1).setValue(parentFolder.getId());
+    const dataCol = colTags.data;
+
+    const folderIdMap = {
+      flexfolderid: parentFolder.getId(),
+      mastercopiesfolderid: masterCopiesFolder.getId(),
+      characterfolderid: charactersFolder.getId(),
+      custabilfolderid: customAbilitiesFolder.getId(),
+    };
+
+    for (const rowTag in folderIdMap) {
+      const rowIndex = rowTags[rowTag];
+      if (rowIndex !== undefined && dataCol !== undefined) {
+        dataSheet.getRange(rowIndex + 1, dataCol + 1).setValue(folderIdMap[rowTag]);
+      }
     }
   }
 
@@ -52,7 +62,6 @@ function fInitialSetup() {
   const sourceData = sourceSheet.getDataRange().getValues();
 
   // 4. Sync all files and log them to the local <MyVersions> sheet
-  const masterCopiesFolder = fGetOrCreateFolder('Master Copies - DO NOT DELETE', parentFolder);
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
 
   // 5. The setup is now complete. Custom abilities are created on-demand by the user.
@@ -110,7 +119,7 @@ function fSyncAllVersionFiles(sourceData, masterCopiesFolder) {
     fShowToast(`⏳ Copying ${ssAbbr} (Version ${version})...`, '⚙️ Setup');
 
     // 4. Make the copy with the new versioned file name
-    const fileName = `v${version} MASTER_${ssAbbr} - DO NOT DELETE`;
+    const fileName = `v${version} MASTER_${ssAbbr}`;
     const newFile = DriveApp.getFileById(masterId).makeCopy(fileName, masterCopiesFolder);
 
     // Only try to embed the Codex ID if the new file is a spreadsheet.
