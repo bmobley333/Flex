@@ -16,23 +16,18 @@
 function fEmbedCodexId(ss) {
   const dataSheet = ss.getSheetByName('Data');
   if (!dataSheet) {
-    // If the template is missing the sheet, we can't proceed.
     console.error(`Could not embed Codex ID because the template is missing a <Data> sheet.`);
     return;
   }
 
   const codexId = fGetCodexSpreadsheet().getId();
 
-  // This is a rare case where we do a direct write without a full fGetSheetData
-  // call, as we need to be very targeted to avoid cache-loop issues.
-  const dataArr = dataSheet.getDataRange().getValues();
-  const colTags = {};
-  dataArr[0].forEach((tag, c) => fNormalizeTags(tag).forEach(t => (colTags[t] = c)));
-  const rowTags = {};
-  dataArr.forEach((row, r) => fNormalizeTags(row[0]).forEach(t => (rowTags[t] = r)));
+  // --- THIS IS THE FIX ---
+  // Use the architecturally correct gatekeeper function to get sheet data.
+  const { rowTags, colTags } = fGetSheetData('Temp', 'Data', ss, true); // Force a refresh
 
   const rowIndex = rowTags.codexid;
-  const colIndex = colTags.data; // <-- Updated from colTags.codexid
+  const colIndex = colTags.data;
 
   if (rowIndex !== undefined && colIndex !== undefined) {
     dataSheet.getRange(rowIndex + 1, colIndex + 1).setValue(codexId);
@@ -62,24 +57,20 @@ function fGetCodexSpreadsheet() {
     return g.codexSS;
   }
 
-  // 3. Try to find the Codex ID in the <Data> sheet.
+  // 3. Try to find the Codex ID in the <Data> sheet using the correct gatekeeper.
   try {
-    // We use fLoadSheetToArray directly here to avoid circular dependencies
-    const dataArr = dataSheet.getDataRange().getValues();
-    const colTags = {};
-    dataArr[0].forEach((tag, c) => fNormalizeTags(tag).forEach(t => (colTags[t] = c)));
-    const rowTags = {};
-    dataArr.forEach((row, r) => fNormalizeTags(row[0]).forEach(t => (rowTags[t] = r)));
+    // --- THIS IS THE FIX ---
+    // We pass activeSS directly to fGetSheetData to prevent circular lookups.
+    const { arr, rowTags, colTags } = fGetSheetData('Temp', 'Data', activeSS, true);
 
     if (rowTags.codexid !== undefined && colTags.data !== undefined) {
-      const codexId = dataArr[rowTags.codexid][colTags.data];
+      const codexId = arr[rowTags.codexid][colTags.data];
       if (codexId) {
         g.codexSS = SpreadsheetApp.openById(codexId);
         return g.codexSS;
       }
     }
   } catch (e) {
-    // If any error occurs trying to read the tag, fall back to assuming we are the Codex.
     console.error(`Could not read Codex ID from <Data> sheet. Assuming active sheet is the Codex. Error: ${e}`);
   }
 
