@@ -2,6 +2,7 @@
 
 // --- Session Caches for High-Speed Performance ---
 let powerDataCache = null; // Caches the filtered power data.
+let magicItemDataCache = null; // Caches the filtered magic item data.
 let csHeaderCache = null; // Caches the Character Sheet header row.
 
 const SCRIPT_INITIALIZED_KEY = 'SCRIPT_INITIALIZED';
@@ -53,90 +54,101 @@ function fActivateMenus() {
 
 
 /* function onEdit
-   Purpose: A simple trigger that auto-populates power details from a high-speed session cache when a power is selected from a dropdown.
-   Assumptions: The <PowerDataCache> sheet exists. The <Game> sheet is tagged correctly.
-   Notes: This is the final, optimized auto-formatter. The first run in a session is slow; subsequent runs are instant.
+   Purpose: A simple trigger that auto-populates details from a high-speed session cache when an item is selected from a dropdown.
+   Assumptions: The appropriate DataCache sheet exists. The <Game> sheet is tagged correctly.
+   Notes: This is the optimized auto-formatter. First run in a session is slow; subsequent runs are instant.
    @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object passed by the trigger.
    @returns {void}
 */
 function onEdit(e) {
   const sheet = e.range.getSheet();
-  const sheetName = sheet.getName();
-  const col = e.range.getColumn();
-  const row = e.range.getRow();
-  const selectedValue = e.value;
+  if (sheet.getName() !== 'Game') return;
 
-  if (sheetName !== 'Game') {
-    return;
-  }
+  try {
+    const col = e.range.getColumn();
+    const row = e.range.getRow();
+    const selectedValue = e.value;
 
-  // 1. Use the header cache. If it's empty, populate it once.
-  if (!csHeaderCache) {
-    csHeaderCache = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  }
-  const csHeader = csHeaderCache;
+    if (!csHeaderCache) {
+      csHeaderCache = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    }
+    const csHeader = csHeaderCache;
+    const editedColTag = csHeader[col - 1];
 
-  const editedColTag = csHeader[col - 1];
-  if (!editedColTag || !editedColTag.startsWith('PowerDropDown')) {
-    return;
-  }
+    if (!editedColTag || !editedColTag.includes('DropDown')) {
+      return;
+    }
 
-  const tagIndex = editedColTag.replace('PowerDropDown', '');
-  const csTargetTags = {
-    usage: `PowerUsage${tagIndex}`,
-    action: `PowerAction${tagIndex}`,
-    name: `PowerName${tagIndex}`,
-    effect: `PowerEffect${tagIndex}`,
-  };
+    let tagPrefix = null;
+    let data = null;
 
-  if (!selectedValue) {
-    Object.values(csTargetTags).forEach(tag => {
-      const targetColIndex = csHeader.indexOf(tag);
-      if (targetColIndex !== -1) {
-        sheet.getRange(row, targetColIndex + 1).clearContent();
+    // 1. Check existing caches first
+    if (powerDataCache && powerDataCache.has(selectedValue)) {
+      tagPrefix = 'Power';
+      data = powerDataCache.get(selectedValue);
+    } else if (magicItemDataCache && magicItemDataCache.has(selectedValue)) {
+      tagPrefix = 'MagicItem';
+      data = magicItemDataCache.get(selectedValue);
+    }
+
+    // 2. If not in cache, build and check again
+    if (!data && selectedValue) {
+      if (!powerDataCache) powerDataCache = FlexLib.fBuildCache('PowerDataCache', 'Power');
+      if (powerDataCache.has(selectedValue)) {
+        tagPrefix = 'Power';
+        data = powerDataCache.get(selectedValue);
+      } else {
+        if (!magicItemDataCache) magicItemDataCache = FlexLib.fBuildCache('MagicItemDataCache', 'Name');
+        if (magicItemDataCache.has(selectedValue)) {
+          tagPrefix = 'MagicItem';
+          data = magicItemDataCache.get(selectedValue);
+        }
       }
-    });
-    return;
-  }
+    }
 
-  // 2. Use the power data cache. If it's empty, populate it once.
-  if (!powerDataCache) {
-    const cacheSheet = e.source.getSheetByName('PowerDataCache');
-    if (!cacheSheet) return;
+    // 3. Find the number from the edited column tag
+    let tagNumber = '1';
+    if (editedColTag) {
+      const match = editedColTag.match(/\d+$/);
+      if (match) tagNumber = match[0];
+    }
 
-    const allCachedPowers = cacheSheet.getDataRange().getValues();
-    const cacheHeader = allCachedPowers.shift(); // Remove header row
-
-    const cacheColMap = {
-      dropdown: cacheHeader.indexOf('DropDown'),
-      usage: cacheHeader.indexOf('Usage'),
-      action: cacheHeader.indexOf('Action'),
-      name: cacheHeader.indexOf('Power'),
-      effect: cacheHeader.indexOf('Effect'),
+    const findColumnIndexByTag = (partialTag) => {
+      return csHeader.findIndex(headerTag => headerTag.includes(partialTag));
     };
 
-    powerDataCache = new Map();
-    allCachedPowers.forEach(pRow => {
-      const key = pRow[cacheColMap.dropdown];
-      const value = {
-        usage: pRow[cacheColMap.usage],
-        action: pRow[cacheColMap.action],
-        name: pRow[cacheColMap.name],
-        effect: pRow[cacheColMap.effect],
-      };
-      powerDataCache.set(key, value);
-    });
+    // 4. Clear or populate cells
+    if (!selectedValue || !data) {
+      const allPossibleTags = [`PowerUsage${tagNumber}`, `PowerAction${tagNumber}`, `PowerName${tagNumber}`, `PowerEffect${tagNumber}`, `MagicItemUsage${tagNumber}`, `MagicItemAction${tagNumber}`, `MagicItemName${tagNumber}`, `MagicItemEffect${tagNumber}`];
+      allPossibleTags.forEach(tag => {
+        const targetColIndex = findColumnIndexByTag(tag);
+        if (targetColIndex !== -1) {
+          sheet.getRange(row, targetColIndex + 1).clearContent();
+        }
+      });
+      return;
+    }
+
+    const targetTags = {
+      usage: `${tagPrefix}Usage${tagNumber}`,
+      action: `${tagPrefix}Action${tagNumber}`,
+      name: `${tagPrefix}Name${tagNumber}`,
+      effect: `${tagPrefix}Effect${tagNumber}`,
+    };
+
+    const usageCol = findColumnIndexByTag(targetTags.usage);
+    const actionCol = findColumnIndexByTag(targetTags.action);
+    const nameCol = findColumnIndexByTag(targetTags.name);
+    const effectCol = findColumnIndexByTag(targetTags.effect);
+
+    if (usageCol !== -1) sheet.getRange(row, usageCol + 1).setValue(data.usage);
+    if (actionCol !== -1) sheet.getRange(row, actionCol + 1).setValue(data.action);
+    if (nameCol !== -1) sheet.getRange(row, nameCol + 1).setValue(data.name);
+    if (effectCol !== -1) sheet.getRange(row, effectCol + 1).setValue(data.effect);
+
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in onEdit: ${e.message}\n${e.stack}`);
   }
-
-  const powerData = powerDataCache.get(selectedValue);
-
-  if (!powerData) return;
-
-  // 3. Write the details to the correct adjacent cells
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.usage) + 1).setValue(powerData.usage);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.action) + 1).setValue(powerData.action);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.name) + 1).setValue(powerData.name);
-  sheet.getRange(row, csHeader.indexOf(csTargetTags.effect) + 1).setValue(powerData.effect);
 } // End function onEdit
 
 /* function buttonFilterPowers
@@ -217,6 +229,26 @@ function fMenuSyncPowerChoices() {
 function fMenuFilterPowers() {
   FlexLib.run('FilterPowers');
 } // End function fMenuFilterPowers
+
+/* function fMenuSyncMagicItemChoices
+   Purpose: Local trigger for the "Sync Magic Item Choices" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuSyncMagicItemChoices() {
+  FlexLib.run('SyncMagicItemChoices');
+} // End function fMenuSyncMagicItemChoices
+
+/* function fMenuFilterMagicItems
+   Purpose: Local trigger for the "Filter Magic Items" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuFilterMagicItems() {
+  FlexLib.run('FilterMagicItems');
+} // End function fMenuFilterMagicItems
 
 /* function fMenuPrepGameForPaper
    Purpose: Local trigger for the "Copy CS <Game> to <Paper>" menu item.

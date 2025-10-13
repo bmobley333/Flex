@@ -21,6 +21,51 @@ function fActivateSheetByName(sheetName) {
   }
 } // End function fActivateSheetByName
 
+/* function fBuildCache
+   Purpose: A generic helper to build a Map cache from a specified cache sheet.
+   Assumptions: The cache sheet exists and has a header row.
+   Notes: This centralizes the cache-building logic used by onEdit.
+   @param {string} cacheSheetName - The name of the sheet to build the cache from.
+   @param {string} nameColHeader - The header text of the "name" column (e.g., 'Power' or 'Name').
+   @returns {Map} The populated cache Map object.
+*/
+function fBuildCache(cacheSheetName, nameColHeader) {
+  const cacheSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(cacheSheetName);
+  const newCache = new Map();
+  if (!cacheSheet) {
+    return newCache;
+  }
+
+  const allCachedData = cacheSheet.getDataRange().getValues();
+  if (allCachedData.length === 0) {
+    return newCache;
+  }
+  const cacheHeader = allCachedData.shift();
+
+  const colMap = {
+    dropdown: cacheHeader.indexOf('DropDown'),
+    usage: cacheHeader.indexOf('Usage'),
+    action: cacheHeader.indexOf('Action'),
+    name: cacheHeader.indexOf(nameColHeader),
+    effect: cacheHeader.indexOf('Effect'),
+  };
+
+  allCachedData.forEach(row => {
+    const key = row[colMap.dropdown];
+    if (key) { // Only cache rows that have a dropdown key
+      const value = {
+        usage: row[colMap.usage],
+        action: row[colMap.action],
+        name: row[colMap.name],
+        effect: row[colMap.effect],
+      };
+      newCache.set(key, value);
+    }
+  });
+
+  return newCache;
+} // End function fBuildCache
+
 /* function fTrimSheet
    Purpose: Trims all empty rows and columns from the active sheet based on cell content.
    Assumptions: The user has triggered this from a menu item on an active sheet.

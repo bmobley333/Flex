@@ -47,13 +47,18 @@ function fCreateCodexMenu() {
    @returns {void}
 */
 function fCreateFlexMenu() {
-  const filterMenu = SpreadsheetApp.getUi().createMenu('⚡ Filter Powers')
+  const ui = SpreadsheetApp.getUi();
+  const filterPowersMenu = ui.createMenu('⚡ Filter Powers')
     .addItem('Load All DB and Cust Powers', 'fMenuSyncPowerChoices')
     .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers');
 
-  SpreadsheetApp.getUi()
-    .createMenu('💪 Flex')
-    .addSubMenu(filterMenu)
+  const filterMagicItemsMenu = ui.createMenu('✨ Filter Magic Items')
+    .addItem('Load All DB and Cust Items', 'fMenuSyncMagicItemChoices')
+    .addItem('Filter Items From Selections ✨', 'fMenuFilterMagicItems');
+
+  ui.createMenu('💪 Flex')
+    .addSubMenu(filterPowersMenu)
+    .addSubMenu(filterMagicItemsMenu)
     .addToUi();
 } // End function fCreateFlexMenu
 

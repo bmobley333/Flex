@@ -427,3 +427,204 @@ function fBuildMagicItems() {
     fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs for details. Error: ${e.message}`);
   }
 } // End function fBuildMagicItems
+
+
+/* function fGetAllMagicItemsList
+   Purpose: A helper to get a definitive, aggregated list of all available magic item TABLES from DB and Custom sources.
+   Assumptions: None.
+   Notes: This is the central source of truth for what magic item tables currently exist.
+   @returns {{allMagicItemTables: Array<{tableName: string, source: string}>}} An object containing the aggregated list.
+*/
+function fGetAllMagicItemsList() {
+  const dbMagicItemTables = [];
+  const customMagicItemTables = [];
+
+  // --- THIS IS THE FIX ---
+  // Get unique TableNames, not every item.
+
+  // 1a. Get tables from the PLAYER'S LOCAL DB copy.
+  const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
+  if (dbFile) {
+    const sourceSS = SpreadsheetApp.open(dbFile);
+    const { arr, rowTags, colTags } = fGetSheetData('DB', 'Magic Items', sourceSS);
+    const headerRow = rowTags.header;
+    if (headerRow !== undefined) {
+      const tableNameCol = colTags.tablename;
+      const dbTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
+      dbTableNames.forEach(name => dbMagicItemTables.push({ tableName: name, source: 'DB' }));
+    }
+  }
+
+  // 1b. Get custom tables from all registered sources in the Codex.
+  const codexSS = fGetCodexSpreadsheet();
+  const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
+  const sourcesHeader = sourcesRowTags.header;
+  if (sourcesHeader !== undefined) {
+    for (let r = sourcesHeader + 1; r < sourcesArr.length; r++) {
+      const sourceRow = sourcesArr[r];
+      if (sourceRow && sourceRow[sourcesColTags.sheetid]) {
+        const sourceId = sourceRow[sourcesColTags.sheetid];
+        const sourceName = sourceRow[sourcesColTags.custabilitiesname];
+        try {
+          const customSS = SpreadsheetApp.openById(sourceId);
+          if (customSS.getSheetByName('VerifiedMagicItems')) {
+            const { arr, rowTags, colTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedMagicItems', customSS);
+            const headerRow = rowTags.header;
+            if (headerRow !== undefined) {
+              const tableNameCol = colTags.tablename;
+              const customTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
+              customTableNames.forEach(name => customMagicItemTables.push({ tableName: `Cust - ${name}`, source: sourceName }));
+            }
+          }
+        } catch (e) {
+          console.error(`Could not access custom source "${sourceName}" with ID ${sourceId}. Error: ${e}`);
+        }
+      }
+    }
+  }
+
+  dbMagicItemTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
+  customMagicItemTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
+  return { allMagicItemTables: [...dbMagicItemTables, ...customMagicItemTables] };
+} // End function fGetAllMagicItemsList
+
+/* function fUpdateMagicItemChoices
+   Purpose: Updates the <Filter Magic Items> sheet with a unique list of all TableNames from the DB and all custom sources.
+   Assumptions: The user is running this from a Character Sheet.
+   Notes: Aggregates from multiple sources and sorts them.
+   @returns {void}
+*/
+function fUpdateMagicItemChoices() {
+  fActivateSheetByName('Filter Magic Items');
+  fShowToast('⏳ Syncing magic item lists...', '✨ Sync Magic Items');
+
+  const { allMagicItemTables } = fGetAllMagicItemsList();
+
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName('Filter Magic Items');
+  if (!destSheet) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find the <Filter Magic Items> sheet in this spreadsheet.');
+    return;
+  }
+
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Magic Items', destSS, true);
+  const destHeaderRow = destRowTags.header;
+  if (destHeaderRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Magic Items> sheet.');
+    return;
+  }
+
+  const lastRow = destSheet.getLastRow();
+  const firstDataRow = destHeaderRow + 2;
+  if (lastRow >= firstDataRow) {
+    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getMaxColumns() - 1).clearContent();
+    if (lastRow > firstDataRow) {
+      destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
+    }
+  }
+
+  const newRowCount = allMagicItemTables.length;
+  if (newRowCount > 0) {
+    if (newRowCount > 1) {
+      destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
+    }
+
+    // --- THIS IS THE FIX ---
+    // Writing 'tableName' to the column tagged 'tablename'
+    const dataToWrite = allMagicItemTables.map(item => [item.tableName, item.source]);
+    // The tags on your sheet are 'isactive', 'tablename', 'source'
+    destSheet.getRange(firstDataRow, destColTags.tablename + 1, newRowCount, 2).setValues(dataToWrite);
+    destSheet.getRange(firstDataRow, destColTags.isactive + 1, newRowCount, 1).insertCheckboxes();
+  }
+
+  fEndToast();
+  fShowMessage('✅ Success', `The <Filter Magic Items> sheet has been updated with ${newRowCount} item tables.\n\nYou can now check the boxes for the tables you want to use and then run "Filter Magic Items" again.`);
+} // End function fUpdateMagicItemChoices
+
+
+/* function fFilterMagicItems
+   Purpose: Builds custom magic item dropdowns on the Character Sheet based on the player's choices in <Filter Magic Items>.
+   Assumptions: The user is running this from a Character Sheet.
+   Notes: This is the primary player-facing function for customizing their item list.
+   @returns {void}
+*/
+function fFilterMagicItems() {
+  fActivateSheetByName('Filter Magic Items');
+  fShowToast('⏳ Filtering magic items...', '✨ Filter Magic Items');
+  const csSS = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Read player's choices for which TABLES to include
+  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Magic Items', csSS, true);
+  const choicesHeaderRow = choicesRowTags.header;
+
+  // --- THIS IS THE FIX ---
+  // Look for data in the 'tablename' column
+  const tableNameCol = choicesColTags.tablename;
+  if (!choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol])) {
+    fEndToast();
+    fUpdateMagicItemChoices();
+    return;
+  }
+
+  const selectedTables = choicesArr
+    .slice(choicesHeaderRow + 1)
+    .filter(row => row[choicesColTags.isactive] === true)
+    .map(row => ({ tableName: row[choicesColTags.tablename], source: row[choicesColTags.source] }));
+
+  if (selectedTables.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Filter Magic Items> sheet before filtering.');
+    return;
+  }
+
+  // 2. Fetch all item data from all items within the selected TABLES
+  fShowToast('Fetching all selected items...', '✨ Filter Magic Items');
+  let allItemsData = [];
+  let cacheHeader = [];
+
+  const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
+  if (selectedDbTables.length > 0) {
+    const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
+    if (dbFile) {
+      const dbSS = SpreadsheetApp.open(dbFile);
+      const { arr: allDbItems, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Magic Items', dbSS);
+      cacheHeader = allDbItems[dbRowTags.header];
+      const dbItems = allDbItems.filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
+      allItemsData = allItemsData.concat(dbItems);
+    }
+  }
+  // (Custom item fetching logic will go here later)
+
+  // 3. Populate cache and create dropdowns
+  const cacheSheet = csSS.getSheetByName('MagicItemDataCache');
+  cacheSheet.clear();
+  if (allItemsData.length > 0) {
+    cacheSheet.getRange(1, 1, 1, cacheHeader.length).setValues([cacheHeader]);
+    cacheSheet.getRange(2, 1, allItemsData.length, allItemsData[0].length).setValues(allItemsData);
+  }
+  fShowToast('✨ Item data cached locally.', 'Filter Magic Items');
+
+  const dbColTags = fGetSheetData('DB', 'Magic Items').colTags;
+  const filteredItemList = allItemsData.map(row => row[dbColTags.dropdown]).sort();
+  const gameSheet = csSS.getSheetByName('Game');
+  const { rowTags: gameRowTags, colTags: gameColTags } = fGetSheetData('CS', 'Game', csSS);
+  const startRow = gameRowTags.magicitemtablestart + 1;
+  const endRow = gameRowTags.magicitemtableend + 1;
+  const numRows = endRow - startRow + 1;
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredItemList.length > 0 ? filteredItemList : [' '], true).setAllowInvalid(false).build();
+  const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('magicitemdropdown'));
+
+  // --- THIS IS THE FIX for the "range is too small" error ---
+  dropDownCols.forEach(tag => {
+    const colIndex = gameColTags[tag] + 1;
+    if (colIndex > 0) { // Safety check to prevent the error
+      gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
+    }
+  });
+
+  fEndToast();
+  fShowMessage('✅ Success!', `Your magic item dropdowns have been updated with ${filteredItemList.length} items.`);
+} // End function fFilterMagicItems
+

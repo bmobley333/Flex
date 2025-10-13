@@ -26,10 +26,11 @@ function run(command, sheetToActivate) {
       DeleteCustomList: fDeleteCustomList,
       DeleteSelectedPowers: fDeleteSelectedPowers,
       VerifyAndPublish: fVerifyAndPublish,
-      VerifyAndPublishMagicItems: fVerifyAndPublishMagicItems, // <-- ADDED
-      DeleteSelectedMagicItems: fDeleteSelectedMagicItems, // <-- ADDED
+      VerifyAndPublishMagicItems: fVerifyAndPublishMagicItems,
+      DeleteSelectedMagicItems: fDeleteSelectedMagicItems,
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: fUpdatePowerTablesList,
+      SyncMagicItemChoices: fUpdateMagicItemChoices, // <-- ADDED
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
@@ -44,6 +45,7 @@ function run(command, sheetToActivate) {
       BuildPowers: fBuildPowers,
       BuildMagicItems: fBuildMagicItems,
       FilterPowers: fFilterPowers,
+      FilterMagicItems: fFilterMagicItems, // <-- ADDED
       PrepGameForPaper: fPrepGameForPaper,
     };
 
