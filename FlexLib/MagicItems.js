@@ -559,8 +559,6 @@ function fFilterMagicItems() {
   const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Magic Items', csSS, true);
   const choicesHeaderRow = choicesRowTags.header;
 
-  // --- THIS IS THE FIX ---
-  // Look for data in the 'tablename' column
   const tableNameCol = choicesColTags.tablename;
   if (!choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol])) {
     fEndToast();
@@ -606,8 +604,16 @@ function fFilterMagicItems() {
   }
   fShowToast('✨ Item data cached locally.', 'Filter Magic Items');
 
-  const dbColTags = fGetSheetData('DB', 'Magic Items').colTags;
-  const filteredItemList = allItemsData.map(row => row[dbColTags.dropdown]).sort();
+  // --- THIS IS THE FIX ---
+  // Get the DropDown column index from the header we already have in memory.
+  const dropDownColIndex = cacheHeader.indexOf('DropDown');
+  if (dropDownColIndex === -1) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find a "DropDown" column in the source data header.');
+    return;
+  }
+
+  const filteredItemList = allItemsData.map(row => row[dropDownColIndex]).sort();
   const gameSheet = csSS.getSheetByName('Game');
   const { rowTags: gameRowTags, colTags: gameColTags } = fGetSheetData('CS', 'Game', csSS);
   const startRow = gameRowTags.magicitemtablestart + 1;
@@ -616,10 +622,9 @@ function fFilterMagicItems() {
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredItemList.length > 0 ? filteredItemList : [' '], true).setAllowInvalid(false).build();
   const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('magicitemdropdown'));
 
-  // --- THIS IS THE FIX for the "range is too small" error ---
   dropDownCols.forEach(tag => {
     const colIndex = gameColTags[tag] + 1;
-    if (colIndex > 0) { // Safety check to prevent the error
+    if (colIndex > 0) {
       gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
     }
   });

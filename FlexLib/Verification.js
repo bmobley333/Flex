@@ -7,49 +7,59 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* function fVerifyActiveSheetTags
-   Purpose: Verifies unique column and row tags on the currently active sheet.
+   Purpose: Verifies unique column and row tags on the currently active sheet by leveraging fGetSheetData.
    Assumptions: The function is triggered by a user on an active sheet.
-   Notes: Stops and reports the first duplicate found.
+   Notes: This version is faster and tests the same cached tag maps the rest of the system uses.
    @returns {void}
 */
 function fVerifyActiveSheetTags() {
   fShowToast('⏳ Verifying all tags...', 'Tag Verification');
   const sheet = SpreadsheetApp.getActiveSheet();
-  const data = sheet.getDataRange().getValues();
+  const sheetName = sheet.getName();
 
-  // 1. Verify Column Tags (Row 0)
-  const seenColTags = {};
-  const colTags = data[0] || []; // Handle empty sheets
-  for (let c = 0; c < colTags.length; c++) {
-    const normalizedTags = fNormalizeTags(colTags[c]);
-    for (const tag of normalizedTags) {
-      const locationA1 = sheet.getRange(1, c + 1).getA1Notation();
-      if (seenColTags[tag]) {
-        const message = `Duplicate column tag found: "${tag}"\n\nOriginal: ${seenColTags[tag]}\nDuplicate: ${locationA1}`;
-        fEndToast();
-        fShowMessage('⚠️ Tag Verification Failed', message);
-        return;
+  try {
+    // Use fGetSheetData to get the canonical tag maps for this sheet, forcing a refresh
+    const { arr } = fGetSheetData('Temp', sheetName, SpreadsheetApp.getActiveSpreadsheet(), true);
+
+    // 1. Verify Column Tags
+    const seenColTags = {};
+    const colTagRow = arr[0] || [];
+    for (let c = 0; c < colTagRow.length; c++) {
+      const normalizedTags = fNormalizeTags(colTagRow[c]);
+      for (const tag of normalizedTags) {
+        if (seenColTags[tag]) {
+          const message = `Duplicate column tag found: "${tag}"\n\nOriginal in cell: ${seenColTags[tag]}\nDuplicate in cell: ${sheet.getRange(1, c + 1).getA1Notation()}`;
+          fEndToast();
+          fShowMessage('⚠️ Tag Verification Failed', message);
+          return;
+        }
+        seenColTags[tag] = sheet.getRange(1, c + 1).getA1Notation();
       }
-      seenColTags[tag] = locationA1;
     }
-  }
 
-  // 2. Verify Row Tags (Column 0)
-  const seenRowTags = {};
-  for (let r = 0; r < data.length; r++) {
-    const normalizedTags = fNormalizeTags(data[r][0]);
-    for (const tag of normalizedTags) {
-      const locationA1 = sheet.getRange(r + 1, 1).getA1Notation();
-      if (seenRowTags[tag]) {
-        const message = `Duplicate row tag found: "${tag}"\n\nOriginal: ${seenRowTags[tag]}\nDuplicate: ${locationA1}`;
-        fEndToast();
-        fShowMessage('⚠️ Tag Verification Failed', message);
-        return;
+    // 2. Verify Row Tags
+    const seenRowTags = {};
+    for (let r = 0; r < arr.length; r++) {
+      // Ensure the row and cell exist before trying to read from it
+      if (arr[r] && arr[r][0]) {
+        const normalizedTags = fNormalizeTags(arr[r][0]);
+        for (const tag of normalizedTags) {
+          if (seenRowTags[tag]) {
+            const message = `Duplicate row tag found: "${tag}"\n\nOriginal in cell: ${seenRowTags[tag]}\nDuplicate in cell: ${sheet.getRange(r + 1, 1).getA1Notation()}`;
+            fEndToast();
+            fShowMessage('⚠️ Tag Verification Failed', message);
+            return;
+          }
+          seenRowTags[tag] = sheet.getRange(r + 1, 1).getA1Notation();
+        }
       }
-      seenRowTags[tag] = locationA1;
     }
-  }
 
-  fEndToast();
-  fShowMessage('Tag Verification', '✅ Success! All column and row tags are unique.');
+    fEndToast();
+    fShowMessage('Tag Verification', '✅ Success! All column and row tags are unique.');
+
+  } catch (e) {
+    fEndToast();
+    fShowMessage('❌ Error', `An error occurred during verification: ${e.message}`);
+  }
 } // End function fVerifyActiveSheetTags
