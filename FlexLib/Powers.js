@@ -288,11 +288,19 @@ function fFilterPowers() {
   const endRow = gameRowTags.powertableend + 1;
   const numRows = endRow - startRow + 1;
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredPowerList.length > 0 ? filteredPowerList : [' '], true).setAllowInvalid(false).build();
-  const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('powerdropdown'));
-  dropDownCols.forEach(tag => {
-    const colIndex = gameColTags[tag] + 1;
+  
+  // --- THIS IS THE FIX ---
+  // Use explicit, robust tag checking instead of fragile string matching.
+  if (gameColTags.powerdropdown1 !== undefined) {
+      const colIndex = gameColTags.powerdropdown1 + 1;
+      gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
+  }
+  if (gameColTags.powerdropdown2 !== undefined) {
+    const colIndex = gameColTags.powerdropdown2 + 1;
     gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
-  });
+  }
+  // Add more explicit checks here if more dropdowns are added to the <Game> sheet in the future.
+
 
   fEndToast();
   fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);

@@ -596,12 +596,11 @@ function fFilterMagicItems() {
     allItemsData = allItemsData.concat(dbItems);
   }
 
-  // 2b. --- THIS IS THE FIX --- Fetch from Custom Sources
+  // 2b. Fetch from Custom Sources
   const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
   if (selectedCustomTables.length > 0) {
     const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
     for (const customTable of selectedCustomTables) {
-      // Find the source file's ID from the Codex
       const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
       if (sourceInfo) {
         const sourceId = sourceInfo[sourcesColTags.sheetid];
@@ -616,7 +615,6 @@ function fFilterMagicItems() {
             .slice(custRowTags.header + 1)
             .filter(row => row[custColTags.tablename] === cleanTableName);
 
-          // Map the custom item data to the standard DB column structure for consistency
           const mappedCustomItems = filteredCustomItems.map(row => {
             const newRow = [];
             newRow[dbColTags.dropdown] = row[custColTags.dropdown];
@@ -644,16 +642,15 @@ function fFilterMagicItems() {
   // 3. Populate cache and create dropdowns
   const cacheSheet = csSS.getSheetByName('MagicItemDataCache');
   cacheSheet.clear();
-  
+
   if (allItemsData.length > 0) {
     cacheSheet.getRange(1, 1, 1, cacheHeader.length).setValues([cacheHeader]);
     cacheSheet.getRange(2, 1, allItemsData.length, allItemsData[0].length).setValues(allItemsData);
   }
   fShowToast('✨ Item data cached locally.', 'Filter Magic Items');
-  
-  // Use the colTags map for a robust, high-performance lookup.
+
   const dropDownColIndex = dbColTags.dropdown;
-  if (dropDownColIndex === undefined) { // Check for undefined, as 0 is a valid index
+  if (dropDownColIndex === undefined) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find a "dropdown" column tag in the source data.');
     return;
@@ -666,14 +663,19 @@ function fFilterMagicItems() {
   const endRow = gameRowTags.magicitemtableend + 1;
   const numRows = endRow - startRow + 1;
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredItemList.length > 0 ? filteredItemList : [' '], true).setAllowInvalid(false).build();
-  const dropDownCols = Object.keys(gameColTags).filter(tag => tag.startsWith('magicitemdropdown'));
 
-  dropDownCols.forEach(tag => {
-    const colIndex = gameColTags[tag] + 1;
-    if (colIndex > 0) {
-      gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
-    }
-  });
+  // --- THIS IS THE FIX ---
+  // Use explicit, robust tag checking instead of fragile string matching.
+  if (gameColTags.magicitemdropdown1 !== undefined) {
+    const colIndex = gameColTags.magicitemdropdown1 + 1;
+    gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
+  }
+  if (gameColTags.magicitemdropdown2 !== undefined) {
+    const colIndex = gameColTags.magicitemdropdown2 + 1;
+    gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
+  }
+  // Add more explicit checks here if more dropdowns are added to the <Game> sheet in the future.
+
 
   fEndToast();
   fShowMessage('✅ Success!', `Your magic item dropdowns have been updated with ${filteredItemList.length} items.`);
