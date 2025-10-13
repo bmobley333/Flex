@@ -73,27 +73,26 @@ function onEdit(e) {
     let data = null;
     let targetTags = {};
 
-    // 1. Build or retrieve caches
-    if (!powerDataCache) {
-      const { arr, colTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
-      powerDataCache = new Map();
-      arr.slice(1).forEach(row => {
-        if (row[colTags.dropdown]) powerDataCache.set(row[colTags.dropdown], { usage: row[colTags.usage], action: row[colTags.action], name: row[colTags.power], effect: row[colTags.effect] });
-      });
-    }
-    if (!magicItemDataCache) {
-      const { arr, colTags } = FlexLib.fGetSheetData('CS', 'MagicItemDataCache', e.source);
-      magicItemDataCache = new Map();
-      arr.slice(1).forEach(row => {
-        if (row[colTags.dropdown]) magicItemDataCache.set(row[colTags.dropdown], { usage: row[colTags.usage], action: row[colTags.action], name: row[colTags.name], effect: row[colTags.effect] });
-      });
-    }
+    // --- THIS IS THE FIX ---
+    // 1. Use the main, high-performance fGetSheetData cache instead of a manual one.
+    const { arr: powerArr, colTags: powerColTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
+    const powerMap = new Map();
+    powerArr.slice(1).forEach(row => {
+      if (row[powerColTags.dropdown]) powerMap.set(row[powerColTags.dropdown], { usage: row[powerColTags.usage], action: row[powerColTags.action], name: row[powerColTags.power], effect: row[powerColTags.effect] });
+    });
+
+    const { arr: itemArr, colTags: itemColTags } = FlexLib.fGetSheetData('CS', 'MagicItemDataCache', e.source);
+    const magicItemMap = new Map();
+    itemArr.slice(1).forEach(row => {
+      if (row[itemColTags.dropdown]) magicItemMap.set(row[itemColTags.dropdown], { usage: row[itemColTags.usage], action: row[itemColTags.action], name: row[itemColTags.name], effect: row[itemColTags.effect] });
+    });
+
 
     // 2. Determine which data to use
-    if (powerDataCache.has(selectedValue)) {
-      data = powerDataCache.get(selectedValue);
-    } else if (magicItemDataCache.has(selectedValue)) {
-      data = magicItemDataCache.get(selectedValue);
+    if (powerMap.has(selectedValue)) {
+      data = powerMap.get(selectedValue);
+    } else if (magicItemMap.has(selectedValue)) {
+      data = magicItemMap.get(selectedValue);
     }
 
     // 3. EXPLICIT TAG MAPPING - No tricky logic
@@ -120,11 +119,11 @@ function onEdit(e) {
       });
       return;
     }
-    
+
     // Determine the correct final set of tags based on the data that was found
-    const finalTags = data === powerDataCache.get(selectedValue) 
-        ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
-        : { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect };
+    const finalTags = data === powerMap.get(selectedValue)
+      ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
+      : { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect };
 
     const usageCol = gameColTags[finalTags.usage];
     const actionCol = gameColTags[finalTags.action];
@@ -136,8 +135,8 @@ function onEdit(e) {
     if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
     if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
 
-  } catch (e) {
-    console.error(`❌ CRITICAL ERROR in onEdit: ${e.message}\n${e.stack}`);
+  } catch (err) {
+    console.error(`❌ CRITICAL ERROR in onEdit: ${err.message}\n${err.stack}`);
   }
 } // End function onEdit
 

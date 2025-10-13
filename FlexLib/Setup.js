@@ -53,13 +53,14 @@ function fInitialSetup() {
   // 3. Get Master Version Data
   fShowToast('Fetching the latest version list...', '⚙️ Setup');
   const sourceSS = SpreadsheetApp.openById(g.MASTER_VER_ID);
-  const sourceSheet = sourceSS.getSheetByName('Versions');
-  if (!sourceSheet) {
+  // --- THIS IS THE FIX ---
+  // Use the architecturally correct gatekeeper to get the master version data.
+  const { arr: sourceData } = fGetSheetData('Ver', 'Versions', sourceSS, true);
+  if (!sourceData) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find the master <Versions> sheet. Please contact the administrator.');
     return;
   }
-  const sourceData = sourceSheet.getDataRange().getValues();
 
   // 4. Sync all files and log them to the local <MyVersions> sheet
   fSyncAllVersionFiles(sourceData, masterCopiesFolder);
