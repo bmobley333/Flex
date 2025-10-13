@@ -21,6 +21,8 @@ function run(command, sheetToActivate) {
     }
 
     const commandMap = {
+      // --- THIS IS THE FIX ---
+      InvalidateGameCache: () => fInvalidateSheetCache('CS', 'Game'),
       ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,
       DeleteCustomList: fDeleteCustomList,
@@ -30,7 +32,7 @@ function run(command, sheetToActivate) {
       DeleteSelectedMagicItems: fDeleteSelectedMagicItems,
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: fUpdatePowerTablesList,
-      SyncMagicItemChoices: fUpdateMagicItemChoices, // <-- ADDED
+      SyncMagicItemChoices: fUpdateMagicItemChoices,
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
@@ -45,7 +47,7 @@ function run(command, sheetToActivate) {
       BuildPowers: fBuildPowers,
       BuildMagicItems: fBuildMagicItems,
       FilterPowers: fFilterPowers,
-      FilterMagicItems: fFilterMagicItems, // <-- ADDED
+      FilterMagicItems: fFilterMagicItems,
       PrepGameForPaper: fPrepGameForPaper,
     };
 

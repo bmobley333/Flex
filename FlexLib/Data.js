@@ -6,6 +6,22 @@
 // Start - Data Caching & Retrieval
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fInvalidateSheetCache
+   Purpose: Invalidates the session cache for a specific sheet.
+   Assumptions: None.
+   Notes: Called by triggers when a sheet's structure changes, forcing fGetSheetData to re-read it on the next call.
+   @param {string} ssKey - The key for the spreadsheet in the g object (e.g., 'CS').
+   @param {string} sheetName - The exact, case-sensitive name of the sheet to invalidate.
+   @returns {void}
+*/
+function fInvalidateSheetCache(ssKey, sheetName) {
+  if (g[ssKey] && g[ssKey][sheetName]) {
+    delete g[ssKey][sheetName];
+    console.log(`Cache invalidated for ${ssKey}.${sheetName} due to structural sheet change.`);
+  }
+} // End function fInvalidateSheetCache
+
 /* function fGetSheetData
    Purpose: The master gatekeeper for retrieving sheet data, using a lazy-loading session cache.
    Assumptions: None.
