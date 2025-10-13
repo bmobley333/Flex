@@ -306,6 +306,8 @@ function fFilterPowers() {
 */
 function fBuildPowers() {
   fShowToast('⏳ Initializing power build...', 'Build Powers');
+  const destSheetName = 'Powers';
+  fActivateSheetByName(destSheetName); // Activate the sheet for user focus
 
   // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
   const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
@@ -319,7 +321,6 @@ function fBuildPowers() {
   const sourceSS = SpreadsheetApp.openById(tablesId);
   const sourceSheetNames = ['Class', 'Race', 'CombatStyles', 'Luck'];
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheetName = 'Powers';
   const destSheet = destSS.getSheetByName(destSheetName);
 
   if (!destSheet) {
@@ -330,7 +331,7 @@ function fBuildPowers() {
 
   // 3. Prepare for data aggregation and load destination sheet map
   g.DB = {}; // Ensure the namespace for the local DB is fresh
-  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS);
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true); // Force refresh
   const headerRowIndex = destRowTags.header;
 
   if (headerRowIndex === undefined) {
@@ -391,17 +392,18 @@ function fBuildPowers() {
         const action = row[sourceColTags.action];
         const effect = row[sourceColTags.effect];
         const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
-        const newRow = [
-          dropDownValue,
-          row[sourceColTags.type],
-          row[sourceColTags.subtype],
-          tableName,
-          row[sourceColTags.source],
-          usage,
-          action,
-          abilityName,
-          effect,
-        ];
+        
+        const newRow = [];
+        newRow[destColTags.dropdown] = dropDownValue;
+        newRow[destColTags.type] = row[sourceColTags.type];
+        newRow[destColTags.subtype] = row[sourceColTags.subtype];
+        newRow[destColTags.tablename] = tableName;
+        newRow[destColTags.source] = row[sourceColTags.source];
+        newRow[destColTags.usage] = usage;
+        newRow[destColTags.action] = action;
+        newRow[destColTags.abilityname] = abilityName;
+        newRow[destColTags.effect] = effect;
+
         allPowersData.push(newRow);
       }
     }
@@ -409,7 +411,8 @@ function fBuildPowers() {
 
   // 7. Sort the combined array
   fShowToast('⏳ Sorting all powers...', 'Build Powers');
-  allPowersData.sort((a, b) => a[0].localeCompare(b[0]));
+  allPowersData.sort((a, b) => a[destColTags.dropdown].localeCompare(b[destColTags.dropdown]));
+
 
   // 8. Write the new data
   const newRowCount = allPowersData.length;
@@ -421,7 +424,14 @@ function fBuildPowers() {
       const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
       formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
     }
-    destSheet.getRange(firstDataRow, 2, newRowCount, allPowersData[0].length).setValues(allPowersData);
+    const dataToWrite = allPowersData.map(row => {
+        const outputRow = [];
+        for (const tag in destColTags) {
+            outputRow[destColTags[tag]] = row[destColTags[tag]];
+        }
+        return outputRow.slice(1);
+    });
+    destSheet.getRange(firstDataRow, 2, newRowCount, dataToWrite[0].length).setValues(dataToWrite);
   }
 
   fEndToast();

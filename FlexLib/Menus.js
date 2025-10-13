@@ -73,18 +73,25 @@ function fCreateGenericMenus(context) {
 /* function fCreateCustMenu
    Purpose: Creates the main custom menu for the Custom Abilities spreadsheet.
    Assumptions: This is called from an onOpen trigger in a Cust sheet.
-   Notes: This menu provides tools for managing powers within the sheet.
+   Notes: This menu provides tools for managing powers and items within the sheet.
    @returns {void}
 */
 function fCreateCustMenu() {
-  const powersMenu = SpreadsheetApp.getUi().createMenu('⚡ Powers')
+  const ui = SpreadsheetApp.getUi();
+
+  const powersMenu = ui.createMenu('⚡ Powers')
     .addItem('✅ Verify & Publish Powers', 'fMenuVerifyAndPublish')
     .addSeparator()
     .addItem('🗑️ Delete Selected Powers', 'fMenuDeleteSelectedPowers');
 
-  SpreadsheetApp.getUi()
-    .createMenu('💪 Flex')
+  const magicItemsMenu = ui.createMenu('✨ Magic Items')
+    .addItem('✅ Verify & Publish Items', 'fMenuVerifyAndPublishMagicItems')
+    .addSeparator()
+    .addItem('🗑️ Delete Selected Items', 'fMenuDeleteSelectedMagicItems');
+
+  ui.createMenu('💪 Flex')
     .addSubMenu(powersMenu)
+    .addSubMenu(magicItemsMenu)
     .addToUi();
 } // End function fCreateCustMenu
 
@@ -97,21 +104,28 @@ function fCreateCustMenu() {
    @returns {void}
 */
 function fCreateDesignerMenu(context = '') {
-  const menu = SpreadsheetApp.getUi().createMenu('Designer');
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('⚙️Designer');
+
+  // Context-specific items
+  if (context === 'DB') {
+    const powersSubMenu = ui.createMenu('⚡ Powers')
+      .addItem('Build Powers from Tables', 'fMenuBuildPowers');
+    const magicItemsSubMenu = ui.createMenu('✨ Magic Items')
+      .addItem('Build Magic Items from Tables', 'fMenuBuildMagicItems');
+    menu.addSubMenu(powersSubMenu);
+    menu.addSubMenu(magicItemsSubMenu);
+    menu.addSeparator();
+  }
+
+  if (context === 'CS') {
+    menu.addItem('Copy CS <Game> to <Paper>', 'fMenuPrepGameForPaper');
+    menu.addSeparator();
+  }
 
   menu.addItem('Tag Verification', 'fMenuTagVerification');
   menu.addItem('Trim Empty Rows/Cols', 'fMenuTrimSheet');
   menu.addItem('Show/Hide All', 'fMenuToggleVisibility');
-  menu.addSeparator();
-
-  // Context-specific items
-  if (context === 'DB') {
-    menu.addItem('Build Powers', 'fMenuBuildPowers');
-  }
-  if (context === 'CS') {
-    menu.addItem('Copy CS <Game> to <Paper>', 'fMenuPrepGameForPaper');
-  }
-
   menu.addSeparator();
   menu.addItem('Test', 'fMenuTest');
   menu.addToUi();

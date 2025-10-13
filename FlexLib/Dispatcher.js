@@ -26,6 +26,8 @@ function run(command, sheetToActivate) {
       DeleteCustomList: fDeleteCustomList,
       DeleteSelectedPowers: fDeleteSelectedPowers,
       VerifyAndPublish: fVerifyAndPublish,
+      VerifyAndPublishMagicItems: fVerifyAndPublishMagicItems, // <-- ADDED
+      DeleteSelectedMagicItems: fDeleteSelectedMagicItems, // <-- ADDED
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: fUpdatePowerTablesList,
       AddNewCustomSource: fAddNewCustomSource,
@@ -40,6 +42,7 @@ function run(command, sheetToActivate) {
       DeleteCharacter: fDeleteCharacter,
       ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
+      BuildMagicItems: fBuildMagicItems,
       FilterPowers: fFilterPowers,
       PrepGameForPaper: fPrepGameForPaper,
     };

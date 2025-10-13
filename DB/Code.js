@@ -38,6 +38,16 @@ function fActivateMenus() {
 } // End function fActivateMenus
 
 
+/* function fMenuBuildMagicItems
+   Purpose: Local trigger for the "Build Magic Items" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuBuildMagicItems() {
+  FlexLib.run('BuildMagicItems', 'Magic Items');
+} // End function fMenuBuildMagicItems
+
 /* function fMenuBuildPowers
    Purpose: Local trigger for the "Build Powers" menu item.
    Assumptions: None.
@@ -45,7 +55,7 @@ function fActivateMenus() {
    @returns {void}
 */
 function fMenuBuildPowers() {
-  FlexLib.run('BuildPowers');
+  FlexLib.run('BuildPowers', 'Powers');
 } // End function fMenuBuildPowers
 
 /* function fMenuPlaceholder

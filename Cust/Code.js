@@ -13,10 +13,11 @@ function onOpen() {
   const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
 
   if (isInitialized) {
-    // Apply the data validation dropdowns to the <Powers> sheet
+    // Apply the data validation dropdowns to both sheets
     FlexLib.fApplyPowerValidations();
+    FlexLib.fApplyMagicItemValidations(); // <-- ADDED
 
-    // Create the standard (currently empty) player menu.
+    // Create the standard player menu.
     FlexLib.fCreateCustMenu();
 
     // Get the globals object from the library to access admin email.
@@ -112,3 +113,25 @@ function fMenuDeleteSelectedPowers() {
 function fMenuVerifyAndPublish() {
   FlexLib.run('VerifyAndPublish', 'Powers');
 } // End function fMenuVerifyAndPublish
+
+/* function fMenuVerifyAndPublishMagicItems
+   Purpose: Local trigger for the "Verify & Publish Items" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuVerifyAndPublishMagicItems() {
+  FlexLib.run('VerifyAndPublishMagicItems', 'Magic Items');
+} // End function fMenuVerifyAndPublishMagicItems
+
+/* function fMenuDeleteSelectedMagicItems
+   Purpose: Local trigger for the "Delete Selected Items" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuDeleteSelectedMagicItems() {
+  FlexLib.run('DeleteSelectedMagicItems', 'Magic Items');
+} // End function fMenuDeleteSelectedMagicItems
+
+
