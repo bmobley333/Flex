@@ -3,7 +3,6 @@
 // --- Session Caches for High-Speed Performance ---
 let powerDataCache = null; // Caches the filtered power data.
 let magicItemDataCache = null; // Caches the filtered magic item data.
-let csHeaderCache = null; // Caches the Character Sheet header row.
 
 const SCRIPT_INITIALIZED_KEY = 'SCRIPT_INITIALIZED';
 
@@ -56,7 +55,7 @@ function fActivateMenus() {
 /* function onEdit
    Purpose: A simple trigger that auto-populates details from a high-speed session cache when an item is selected from a dropdown.
    Assumptions: The appropriate DataCache sheet exists. The <Game> sheet is tagged correctly.
-   Notes: This is the optimized auto-formatter. First run in a session is slow; subsequent runs are instant.
+   Notes: This is the optimized auto-formatter, built on fGetSheetData for maximum performance and robust, explicit tag matching.
    @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object passed by the trigger.
    @returns {void}
 */
@@ -65,86 +64,77 @@ function onEdit(e) {
   if (sheet.getName() !== 'Game') return;
 
   try {
-    const col = e.range.getColumn();
-    const row = e.range.getRow();
+    const { colTags: gameColTags } = FlexLib.fGetSheetData('CS', 'Game', e.source);
+    const editedColTag = Object.keys(gameColTags).find(tag => gameColTags[tag] === e.range.getColumn() - 1);
+
+    if (!editedColTag) return;
+
     const selectedValue = e.value;
-
-    if (!csHeaderCache) {
-      csHeaderCache = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    }
-    const csHeader = csHeaderCache;
-    const editedColTag = csHeader[col - 1];
-
-    if (!editedColTag || !editedColTag.includes('DropDown')) {
-      return;
-    }
-
-    let tagPrefix = null;
     let data = null;
+    let targetTags = {};
 
-    // 1. Check existing caches first
-    if (powerDataCache && powerDataCache.has(selectedValue)) {
-      tagPrefix = 'Power';
+    // 1. Build or retrieve caches
+    if (!powerDataCache) {
+      const { arr, colTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
+      powerDataCache = new Map();
+      arr.slice(1).forEach(row => {
+        if (row[colTags.dropdown]) powerDataCache.set(row[colTags.dropdown], { usage: row[colTags.usage], action: row[colTags.action], name: row[colTags.power], effect: row[colTags.effect] });
+      });
+    }
+    if (!magicItemDataCache) {
+      const { arr, colTags } = FlexLib.fGetSheetData('CS', 'MagicItemDataCache', e.source);
+      magicItemDataCache = new Map();
+      arr.slice(1).forEach(row => {
+        if (row[colTags.dropdown]) magicItemDataCache.set(row[colTags.dropdown], { usage: row[colTags.usage], action: row[colTags.action], name: row[colTags.name], effect: row[colTags.effect] });
+      });
+    }
+
+    // 2. Determine which data to use
+    if (powerDataCache.has(selectedValue)) {
       data = powerDataCache.get(selectedValue);
-    } else if (magicItemDataCache && magicItemDataCache.has(selectedValue)) {
-      tagPrefix = 'MagicItem';
+    } else if (magicItemDataCache.has(selectedValue)) {
       data = magicItemDataCache.get(selectedValue);
     }
 
-    // 2. If not in cache, build and check again
-    if (!data && selectedValue) {
-      if (!powerDataCache) powerDataCache = FlexLib.fBuildCache('PowerDataCache', 'Power');
-      if (powerDataCache.has(selectedValue)) {
-        tagPrefix = 'Power';
-        data = powerDataCache.get(selectedValue);
-      } else {
-        if (!magicItemDataCache) magicItemDataCache = FlexLib.fBuildCache('MagicItemDataCache', 'Name');
-        if (magicItemDataCache.has(selectedValue)) {
-          tagPrefix = 'MagicItem';
-          data = magicItemDataCache.get(selectedValue);
-        }
-      }
+    // 3. EXPLICIT TAG MAPPING - No tricky logic
+    switch (editedColTag) {
+      case 'powerdropdown1':
+      case 'magicitemdropdown1':
+        targetTags = { usage: 'powerusage1', action: 'poweraction1', name: 'powername1', effect: 'powereffect1', m_usage: 'magicitemusage1', m_action: 'magicitemaction1', m_name: 'magicitemname1', m_effect: 'magicitemeffect1' };
+        break;
+      case 'powerdropdown2':
+      case 'magicitemdropdown2':
+        targetTags = { usage: 'powerusage2', action: 'poweraction2', name: 'powername2', effect: 'powereffect2', m_usage: 'magicitemusage2', m_action: 'magicitemaction2', m_name: 'magicitemname2', m_effect: 'magicitemeffect2' };
+        break;
+      // Add more cases here for DropDown3, DropDown4, etc. if they ever exist
+      default:
+        return; // Not a dropdown we care about
     }
-
-    // 3. Find the number from the edited column tag
-    let tagNumber = '1';
-    if (editedColTag) {
-      const match = editedColTag.match(/\d+$/);
-      if (match) tagNumber = match[0];
-    }
-
-    const findColumnIndexByTag = (partialTag) => {
-      return csHeader.findIndex(headerTag => headerTag.includes(partialTag));
-    };
 
     // 4. Clear or populate cells
+    const allPossibleTags = [targetTags.usage, targetTags.action, targetTags.name, targetTags.effect, targetTags.m_usage, targetTags.m_action, targetTags.m_name, targetTags.m_effect];
     if (!selectedValue || !data) {
-      const allPossibleTags = [`PowerUsage${tagNumber}`, `PowerAction${tagNumber}`, `PowerName${tagNumber}`, `PowerEffect${tagNumber}`, `MagicItemUsage${tagNumber}`, `MagicItemAction${tagNumber}`, `MagicItemName${tagNumber}`, `MagicItemEffect${tagNumber}`];
       allPossibleTags.forEach(tag => {
-        const targetColIndex = findColumnIndexByTag(tag);
-        if (targetColIndex !== -1) {
-          sheet.getRange(row, targetColIndex + 1).clearContent();
-        }
+        const col = gameColTags[tag];
+        if (col !== undefined) sheet.getRange(e.range.getRow(), col + 1).clearContent();
       });
       return;
     }
+    
+    // Determine the correct final set of tags based on the data that was found
+    const finalTags = data === powerDataCache.get(selectedValue) 
+        ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
+        : { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect };
 
-    const targetTags = {
-      usage: `${tagPrefix}Usage${tagNumber}`,
-      action: `${tagPrefix}Action${tagNumber}`,
-      name: `${tagPrefix}Name${tagNumber}`,
-      effect: `${tagPrefix}Effect${tagNumber}`,
-    };
+    const usageCol = gameColTags[finalTags.usage];
+    const actionCol = gameColTags[finalTags.action];
+    const nameCol = gameColTags[finalTags.name];
+    const effectCol = gameColTags[finalTags.effect];
 
-    const usageCol = findColumnIndexByTag(targetTags.usage);
-    const actionCol = findColumnIndexByTag(targetTags.action);
-    const nameCol = findColumnIndexByTag(targetTags.name);
-    const effectCol = findColumnIndexByTag(targetTags.effect);
-
-    if (usageCol !== -1) sheet.getRange(row, usageCol + 1).setValue(data.usage);
-    if (actionCol !== -1) sheet.getRange(row, actionCol + 1).setValue(data.action);
-    if (nameCol !== -1) sheet.getRange(row, nameCol + 1).setValue(data.name);
-    if (effectCol !== -1) sheet.getRange(row, effectCol + 1).setValue(data.effect);
+    if (usageCol !== undefined) sheet.getRange(e.range.getRow(), usageCol + 1).setValue(data.usage);
+    if (actionCol !== undefined) sheet.getRange(e.range.getRow(), actionCol + 1).setValue(data.action);
+    if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
+    if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
 
   } catch (e) {
     console.error(`❌ CRITICAL ERROR in onEdit: ${e.message}\n${e.stack}`);
