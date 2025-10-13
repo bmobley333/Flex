@@ -554,6 +554,7 @@ function fFilterMagicItems() {
   fActivateSheetByName('Filter Magic Items');
   fShowToast('⏳ Filtering magic items...', '✨ Filter Magic Items');
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
+  const codexSS = fGetCodexSpreadsheet();
 
   // 1. Read player's choices for which TABLES to include
   const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Magic Items', csSS, true);
@@ -582,34 +583,79 @@ function fFilterMagicItems() {
   let allItemsData = [];
   let cacheHeader = [];
 
+  // 2a. Get all data and tags from the DB file one time.
+  const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
+  const dbSS = SpreadsheetApp.open(dbFile);
+  const { arr: allDbItems, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Magic Items', dbSS);
+  cacheHeader = allDbItems[dbRowTags.header];
+
+
   const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
   if (selectedDbTables.length > 0) {
-    const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
-    if (dbFile) {
-      const dbSS = SpreadsheetApp.open(dbFile);
-      const { arr: allDbItems, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Magic Items', dbSS);
-      cacheHeader = allDbItems[dbRowTags.header];
-      const dbItems = allDbItems.filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
-      allItemsData = allItemsData.concat(dbItems);
+    const dbItems = allDbItems.filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
+    allItemsData = allItemsData.concat(dbItems);
+  }
+
+  // 2b. --- THIS IS THE FIX --- Fetch from Custom Sources
+  const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
+  if (selectedCustomTables.length > 0) {
+    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
+    for (const customTable of selectedCustomTables) {
+      // Find the source file's ID from the Codex
+      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
+      if (sourceInfo) {
+        const sourceId = sourceInfo[sourcesColTags.sheetid];
+        fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Magic Items');
+        try {
+          const customSS = SpreadsheetApp.openById(sourceId);
+          const { arr: customSheetItems, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedMagicItems', customSS);
+          if (cacheHeader.length === 0) cacheHeader = customSheetItems[custRowTags.header];
+
+          const cleanTableName = customTable.tableName.replace('Cust - ', '');
+          const filteredCustomItems = customSheetItems
+            .slice(custRowTags.header + 1)
+            .filter(row => row[custColTags.tablename] === cleanTableName);
+
+          // Map the custom item data to the standard DB column structure for consistency
+          const mappedCustomItems = filteredCustomItems.map(row => {
+            const newRow = [];
+            newRow[dbColTags.dropdown] = row[custColTags.dropdown];
+            newRow[dbColTags.type] = row[custColTags.type];
+            newRow[dbColTags.subtype] = row[custColTags.subtype];
+            newRow[dbColTags.tablename] = row[custColTags.tablename];
+            newRow[dbColTags.source] = row[custColTags.source];
+            newRow[dbColTags.usage] = row[custColTags.usage];
+            newRow[dbColTags.action] = row[custColTags.action];
+            newRow[dbColTags.abilityname] = row[custColTags.abilityname];
+            newRow[dbColTags.effect] = row[custColTags.effect];
+            return newRow;
+          });
+
+          allItemsData = allItemsData.concat(mappedCustomItems);
+        } catch (e) {
+          console.error(`Could not access custom source "${customTable.source}". Error: ${e}`);
+          fShowMessage('⚠️ Warning', `Could not access the custom source "${customTable.source}". Skipping.`);
+        }
+      }
     }
   }
-  // (Custom item fetching logic will go here later)
+
 
   // 3. Populate cache and create dropdowns
   const cacheSheet = csSS.getSheetByName('MagicItemDataCache');
   cacheSheet.clear();
+  
   if (allItemsData.length > 0) {
     cacheSheet.getRange(1, 1, 1, cacheHeader.length).setValues([cacheHeader]);
     cacheSheet.getRange(2, 1, allItemsData.length, allItemsData[0].length).setValues(allItemsData);
   }
   fShowToast('✨ Item data cached locally.', 'Filter Magic Items');
-
-  // --- THIS IS THE FIX ---
-  // Get the DropDown column index from the header we already have in memory.
-  const dropDownColIndex = cacheHeader.indexOf('DropDown');
-  if (dropDownColIndex === -1) {
+  
+  // Use the colTags map for a robust, high-performance lookup.
+  const dropDownColIndex = dbColTags.dropdown;
+  if (dropDownColIndex === undefined) { // Check for undefined, as 0 is a valid index
     fEndToast();
-    fShowMessage('❌ Error', 'Could not find a "DropDown" column in the source data header.');
+    fShowMessage('❌ Error', 'Could not find a "dropdown" column tag in the source data.');
     return;
   }
 
