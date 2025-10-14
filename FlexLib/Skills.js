@@ -1,10 +1,82 @@
 /* global fShowToast, SpreadsheetApp, fGetSheetData, fShowMessage, fEndToast, fPromptWithInput */
-/* exported fVerifySkills */
+/* exported fVerifySkills, fVerifySkillSets */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Skill Verification
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* function fVerifySkillSets
+   Purpose: The master workflow for verifying the skill type emojis within the <SkillSets> sheet.
+   Assumptions: Run from a 'Tables' sheet context. The active sheet is <SkillSets>.
+   Notes: Iterates through all data rows, splits the comma-separated skill list, and validates each individual skill.
+   @returns {void}
+*/
+function fVerifySkillSets() {
+  fShowToast('⏳ Verifying all skill sets...', '🎓 Skill Set Verification');
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const sheetName = sheet.getName();
+
+  if (sheetName !== 'SkillSets') {
+    fEndToast();
+    fShowMessage('⚠️ Warning', 'This function is designed to run only on the <SkillSets> sheet.');
+    return;
+  }
+
+  try {
+    const { arr, rowTags, colTags } = fGetSheetData('Tbls', sheetName, sheet.getParent(), true);
+    const headerRow = rowTags.header;
+    const skillSetCol = colTags.skillset;
+    const skillListCol = colTags.skilllist;
+
+    if (headerRow === undefined || skillSetCol === undefined || skillListCol === undefined) {
+      throw new Error(`The <${sheetName}> sheet is missing a required tag (Header, SkillSet, or SkillList).`);
+    }
+
+    let correctedCellCount = 0;
+    const emojiMap = { '💪': 'Might', '🏃': 'Motion', '👁️': 'Mind', '✨': 'Magic' };
+    const validEmojis = Object.keys(emojiMap);
+
+    // Loop through all data rows
+    for (let r = headerRow + 1; r < arr.length; r++) {
+      const currentRow = r + 1;
+      const skillSet = arr[r][skillSetCol];
+      const originalSkillList = arr[r][skillListCol];
+
+      // Check the conditions to process a row
+      if (skillSet && originalSkillList && originalSkillList.includes(',')) {
+        const skills = originalSkillList.split(',').map(s => s.trim());
+        const correctedSkills = [];
+        let listWasCorrected = false;
+
+        skills.forEach(skill => {
+          const correctedSkill = fValidateAndCorrectSkillString(skill, validEmojis, emojiMap);
+          if (correctedSkill !== skill) {
+            listWasCorrected = true;
+          }
+          correctedSkills.push(correctedSkill);
+        });
+
+        if (listWasCorrected) {
+          const newSkillList = correctedSkills.join(', ');
+          sheet.getRange(currentRow, skillListCol + 1).setValue(newSkillList);
+          correctedCellCount++;
+        }
+      }
+    }
+
+    fEndToast();
+    if (correctedCellCount > 0) {
+      fShowMessage('✅ Verification Complete', `Found and corrected skills in ${correctedCellCount} skill set(s).`);
+    } else {
+      fShowMessage('✅ Verification Complete', 'All skill sets are correctly formatted!');
+    }
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in fVerifySkillSets: ${e.message}\n${e.stack}`);
+    fEndToast();
+    fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
+  }
+} // End function fVerifySkillSets
 
 /* function fVerifySkills
    Purpose: The master workflow for verifying the skill type emoji in the active sheet.
@@ -68,24 +140,28 @@ function fVerifySkills() {
    @returns {string|null} The corrected string, or the original string if no change was needed.
 */
 function fValidateAndCorrectSkillString(skillString, validEmojis, emojiMap) {
-  const foundEmojis = validEmojis.filter(emoji => skillString.includes(emoji));
+  // Auto-capitalize every word in the string.
+  const capitalizedString = skillString.replace(/\b\w/g, char => char.toUpperCase());
+  const foundEmojis = validEmojis.filter(emoji => capitalizedString.includes(emoji));
 
   // Case 1: Exactly one valid emoji is found.
   if (foundEmojis.length === 1) {
     const emoji = foundEmojis[0];
-    // Auto-correct if the emoji is not at the end of the string.
-    if (!skillString.trim().endsWith(emoji)) {
+    const cleanedString = capitalizedString.replace(new RegExp(emoji, 'g'), '').trim();
+    const finalString = `${cleanedString}${emoji}`;
+
+    // Auto-correct if the format has changed.
+    if (finalString !== skillString) {
       fShowToast(`Fixing format for: "${skillString}"`, '🎓 Skill Verification', 4);
-      const cleanedString = skillString.replace(new RegExp(emoji, 'g'), '').trim();
-      return `${cleanedString}${emoji}`;
+      return finalString;
     }
     // Otherwise, the string is already perfect.
     return skillString;
   }
 
   // Case 2: Zero or multiple valid emojis are found, requiring user input.
-  const choices = validEmojis.map((emoji, index) => `${index + 1}. ${emojiMap[emoji]} ${emoji}`);
-  const basePrompt = `The skill "${skillString}" has an invalid type.\n\nPlease choose the correct type to apply:\n\n${choices.join('\n')}\n\nEnter a number from 1 to ${validEmojis.length}.`;
+  const choices = validEmojis.map((index, i) => `${i + 1}. ${emojiMap[index]} ${index}`);
+  const basePrompt = `The skill has an invalid type:\n\n**${capitalizedString}**\n\nPlease choose the correct type to apply:\n\n${choices.join('\n')}\n\nEnter a number from 1 to ${validEmojis.length}.`;
   let userChoice = null;
 
   // Loop to re-prompt on invalid input.
@@ -103,7 +179,7 @@ function fValidateAndCorrectSkillString(skillString, validEmojis, emojiMap) {
     if (choiceIndex >= 0 && choiceIndex < validEmojis.length) {
       const correctEmoji = validEmojis[choiceIndex];
       // Remove all old valid emojis before adding the correct one.
-      let newString = skillString;
+      let newString = capitalizedString;
       validEmojis.forEach(emoji => {
         newString = newString.replace(new RegExp(emoji, 'g'), '');
       });

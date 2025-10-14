@@ -135,7 +135,10 @@ function fCreateDesignerMenu(context = '') {
   if (context === 'Tables') {
     const skillsSubMenu = ui.createMenu('🎓 Skills')
       .addItem('Verify Skill Types', 'fMenuVerifySkills');
+    const skillSetsSubMenu = ui.createMenu('🎓 Skill Sets')
+      .addItem('Verify', 'fMenuVerifySkillSets');
     menu.addSubMenu(skillsSubMenu);
+    menu.addSubMenu(skillSetsSubMenu);
     menu.addSeparator();
   }
 

@@ -59,6 +59,7 @@ function run(command, sheetToActivate) {
       FilterMagicItems: () => fFilterMagicItems(false),
       PrepGameForPaper: fPrepGameForPaper,
       VerifySkills: fVerifySkills,
+      VerifySkillSets: fVerifySkillSets,
     };
 
     if (commandMap[command]) {
