@@ -1,4 +1,4 @@
-/* global g, fGetSheetId, SpreadsheetApp, fBuildTagMaps, fShowMessage, fShowToast, fActivateSheetByName, fGetSheetData, fEndToast, fGetVerifiedLocalFile, fGetCodexSpreadsheet, fDeleteTableRow, fGetMasterSheetId */
+/* global g, fGetSheetId, SpreadsheetApp, fBuildTagMaps, fShowMessage, fShowToast, fActivateSheetByName, fGetSheetData, fEndToast, fGetVerifiedLocalFile, fGetCodexSpreadsheet, fDeleteTableRow, fGetMasterSheetId, fClearAndWriteData */
 /* exported fBuildPowers */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,72 +199,23 @@ function fUpdatePowerTablesList(isSilent = false) {
   }
 } // End function fUpdatePowerTablesList
 
-/* function fBuildPowers
-   Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
-   Assumptions: The user is running this from the DB spreadsheet.
-   Notes: This is a destructive and regenerative process that now reads from multiple source sheets.
-   @returns {void}
+/* function fGetPowerSourceData
+   Purpose: A helper to fetch, process, and aggregate all power data from the master Tables file.
+   Assumptions: The 'Tbls' file ID is valid and the source sheets exist.
+   Notes: This is a helper for the fBuildPowers refactor.
+   @param {object} destColTags - The column tag map from the destination <Powers> sheet.
+   @returns {Array<Array<string>>} A 2D array of the aggregated and processed power data.
 */
-function fBuildPowers() {
-  fShowToast('⏳ Initializing power build...', 'Build Powers');
-  const destSheetName = 'Powers';
-  fActivateSheetByName(destSheetName); // Activate the sheet for user focus
-
-  // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
+function fGetPowerSourceData(destColTags) {
   const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
   if (!tablesId) {
-    fEndToast();
-    fShowMessage('❌ Error', 'Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
-    return;
+    throw new Error('Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
   }
 
-  // 2. Define source and destination details
   const sourceSS = SpreadsheetApp.openById(tablesId);
   const sourceSheetNames = ['Class', 'Race', 'CombatStyles', 'Luck'];
-  const destSS = SpreadsheetApp.getActiveSpreadsheet();
-  const destSheet = destSS.getSheetByName(destSheetName);
-
-  if (!destSheet) {
-    fEndToast();
-    fShowMessage('❌ Error', `Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
-    return;
-  }
-
-  // 3. Prepare for data aggregation and load destination sheet map
-  g.DB = {}; // Ensure the namespace for the local DB is fresh
-  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true); // Force refresh
-  const headerRowIndex = destRowTags.header;
-
-  if (headerRowIndex === undefined) {
-    fEndToast();
-    fShowMessage('❌ Error', `The <${destSheetName}> sheet is missing a "Header" row tag.`);
-    return;
-  }
-
-  // 4. Verify destination column structure
-  const columnsToCopy = ['type', 'subtype', 'tablename', 'source', 'usage', 'action', 'abilityname', 'effect'];
-  for (const tag of columnsToCopy) {
-    if (destColTags[tag] === undefined) {
-      fEndToast();
-      fShowMessage('❌ Error', `The <${destSheetName}> sheet must have a column tagged with "${tag}".`);
-      return;
-    }
-  }
-
-  // 5. Clear the destination sheet using the robust, format-preserving method
-  fShowToast('⏳ Clearing old power data...', 'Build Powers');
-  const lastRow = destSheet.getLastRow();
-  const firstDataRow = headerRowIndex + 2;
-  if (lastRow >= firstDataRow) {
-    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getLastColumn() - 1).clearContent();
-    if (lastRow > firstDataRow) {
-      destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
-    }
-  }
-
-  // 6. Process each source sheet and aggregate the data
   const allPowersData = [];
-  g.Tbls = {};
+  g.Tbls = {}; // Ensure a fresh cache namespace
 
   sourceSheetNames.forEach(sourceSheetName => {
     fShowToast(`⏳ Processing <${sourceSheetName}>...`, 'Build Powers');
@@ -285,15 +236,13 @@ function fBuildPowers() {
       const row = sourceArr[r];
       const abilityName = row[sourceColTags.abilityname];
 
-      // --- THIS IS THE FIX ---
-      // Only process rows that have a real ability name, not the placeholder "Power" text.
       if (abilityName && abilityName !== 'Power') {
         const tableName = row[sourceColTags.tablename];
         const usage = row[sourceColTags.usage];
         const action = row[sourceColTags.action];
         const effect = row[sourceColTags.effect];
         const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
-        
+
         const newRow = [];
         newRow[destColTags.dropdown] = dropDownValue;
         newRow[destColTags.type] = row[sourceColTags.type];
@@ -310,33 +259,48 @@ function fBuildPowers() {
     }
   });
 
-  // 7. Sort the combined array
+  // Sort the combined array
   fShowToast('⏳ Sorting all powers...', 'Build Powers');
   allPowersData.sort((a, b) => a[destColTags.dropdown].localeCompare(b[destColTags.dropdown]));
 
+  return allPowersData;
+} // End function fGetPowerSourceData
 
-  // 8. Write the new data
-  const newRowCount = allPowersData.length;
-  if (newRowCount > 0) {
-    fShowToast(`⏳ Writing ${newRowCount} new powers...`, 'Build Powers');
-    if (newRowCount > 1) {
-      destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
-      const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
-      const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
-      formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
+
+
+/* function fBuildPowers
+   Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
+   Assumptions: The user is running this from the DB spreadsheet.
+   Notes: This is a destructive and regenerative process that now reads from multiple source sheets.
+   @returns {void}
+*/
+function fBuildPowers() {
+  fShowToast('⏳ Initializing power build...', 'Build Powers');
+  const destSheetName = 'Powers';
+  fActivateSheetByName(destSheetName);
+
+  try {
+    const destSS = SpreadsheetApp.getActiveSpreadsheet();
+    const destSheet = destSS.getSheetByName(destSheetName);
+    if (!destSheet) {
+      throw new Error(`Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
     }
-    const dataToWrite = allPowersData.map(row => {
-        const outputRow = [];
-        for (const tag in destColTags) {
-            outputRow[destColTags[tag]] = row[destColTags[tag]];
-        }
-        return outputRow.slice(1);
-    });
-    destSheet.getRange(firstDataRow, 2, newRowCount, dataToWrite[0].length).setValues(dataToWrite);
-  }
 
-  fEndToast();
-  fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allPowersData.length} powers from all sources.`);
+    g.DB = {}; // Ensure a fresh cache namespace
+    const { colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true);
+
+    const allPowersData = fGetPowerSourceData(destColTags);
+
+    fShowToast(`⏳ Writing ${allPowersData.length} new powers...`, 'Build Powers');
+    fClearAndWriteData(destSheet, allPowersData, destColTags);
+
+    fEndToast();
+    fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allPowersData.length} powers from all sources.`);
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in fBuildPowers: ${e.message}\n${e.stack}`);
+    fEndToast();
+    fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
+  }
 } // End function fBuildPowers
 
 

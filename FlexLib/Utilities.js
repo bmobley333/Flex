@@ -1,5 +1,5 @@
-/* global SpreadsheetApp, g */
-/* exported fShowMessage, fLoadSheetToArray, fNormalizeTags, fActivateSheetByName */
+/* global SpreadsheetApp, g, fGetSheetData */
+/* exported fShowMessage, fLoadSheetToArray, fNormalizeTags, fActivateSheetByName, fClearAndWriteData */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -109,6 +109,56 @@ function fShowMessage(title, message) {
 // End - User Interface Utilities
 // Start - Data Handling Utilities
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* function fClearAndWriteData
+   Purpose: A generic helper to clear old data from a sheet and write new, sorted data, preserving the header and template row formatting.
+   Assumptions: The destination sheet has a 'Header' row tag.
+   Notes: This is a reusable utility for any 'Build...' process.
+   @param {GoogleAppsScript.Spreadsheet.Sheet} destSheet - The destination sheet object.
+   @param {Array<Array<string>>} dataToWrite - A 2D array of the new data to be written.
+   @param {object} destColTags - The column tag map for the destination sheet.
+   @returns {void}
+*/
+function fClearAndWriteData(destSheet, dataToWrite, destColTags) {
+  const { rowTags } = fGetSheetData('Temp', destSheet.getName(), destSheet.getParent(), true);
+  const headerRowIndex = rowTags.header;
+  const firstDataRow = headerRowIndex + 2;
+  const lastRow = destSheet.getLastRow();
+
+  // 1. Clear old data
+  if (lastRow >= firstDataRow) {
+    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getMaxColumns() - 1).clearContent();
+    if (lastRow > firstDataRow) {
+      destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
+    }
+  }
+
+  // 2. Write new data
+  const newRowCount = dataToWrite.length;
+  if (newRowCount > 0) {
+    if (newRowCount > 1) {
+      destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
+      const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
+      const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
+      formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
+    }
+
+    // Map the sparse array to a full 2D array that matches the destination sheet's column order
+    const outputData = dataToWrite.map(row => {
+      const outputRow = [];
+      for (const tag in destColTags) {
+        const colIndex = destColTags[tag];
+        outputRow[colIndex] = row[colIndex] || ''; // Use empty string for any undefined values
+      }
+      return outputRow.slice(1); // Remove the first column (row tags)
+    });
+
+    destSheet.getRange(firstDataRow, 2, newRowCount, outputData[0].length).setValues(outputData);
+  }
+} // End function fClearAndWriteData
+
+
+
 
 /* function fParseA1Notation
    Purpose: Parses a custom A1 notation string into an object of rows and columns.
