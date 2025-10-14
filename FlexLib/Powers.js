@@ -71,8 +71,6 @@ function fUpdatePowerTablesList() {
   fActivateSheetByName('Filter Powers');
   fShowToast('⏳ Syncing power tables...', 'Sync Power Tables');
 
-  const { allPowerTables } = fGetAllPowerTablesList();
-
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Powers');
   if (!destSheet) {
@@ -80,6 +78,21 @@ function fUpdatePowerTablesList() {
     fShowMessage('❌ Error', 'Could not find the <Filter Powers> sheet in this spreadsheet.');
     return;
   }
+
+  // --- NEW: Preserve checked state ---
+  const { arr: oldArr, rowTags: oldRowTags, colTags: oldColTags } = fGetSheetData('CS', 'Filter Powers', destSS, true);
+  const oldHeaderRow = oldRowTags.header;
+  const previouslyChecked = new Set();
+  if (oldHeaderRow !== undefined) {
+    for (let r = oldHeaderRow + 1; r < oldArr.length; r++) {
+      if (oldArr[r][oldColTags.isactive] === true) {
+        previouslyChecked.add(oldArr[r][oldColTags.tablename]);
+      }
+    }
+  }
+  // --- END NEW ---
+
+  const { allPowerTables } = fGetAllPowerTablesList();
 
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Powers', destSS, true);
   const destHeaderRow = destRowTags.header;
@@ -92,7 +105,7 @@ function fUpdatePowerTablesList() {
   const lastRow = destSheet.getLastRow();
   const firstDataRow = destHeaderRow + 2;
   if (lastRow >= firstDataRow) {
-    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getLastColumn() - 1).clearContent();
+    destSheet.getRange(firstDataRow, 1, lastRow - firstDataRow + 1, destSheet.getMaxColumns()).clearContent();
     if (lastRow > firstDataRow) {
       destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
     }
@@ -117,11 +130,26 @@ function fUpdatePowerTablesList() {
     });
 
     destSheet.getRange(firstDataRow, 2, newRowCount, dataToWrite[0].length).setValues(dataToWrite);
-    destSheet.getRange(firstDataRow, destColTags.isactive + 1, newRowCount, 1).insertCheckboxes();
+
+    // --- NEW: Re-apply checked state ---
+    const newIsActiveCol = destColTags.isactive + 1;
+    const newTableNameCol = destColTags.tablename;
+    const newData = destSheet.getRange(firstDataRow, newTableNameCol + 1, newRowCount, 1).getValues();
+
+    newData.forEach((row, index) => {
+      const tableName = row[0];
+      const range = destSheet.getRange(firstDataRow + index, newIsActiveCol);
+      if (previouslyChecked.has(tableName)) {
+        range.check();
+      } else {
+        range.insertCheckboxes(); // Ensure even unchecked rows get a box
+      }
+    });
+    // --- END NEW ---
   }
 
   fEndToast();
-  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.\n\nYou can now check the boxes for the power lists you want to use and then run "Filter Powers" again.`);
+  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.\n\nYour previous selections have been preserved.`);
 } // End function fUpdatePowerTablesList
 
 

@@ -498,8 +498,6 @@ function fUpdateMagicItemChoices() {
   fActivateSheetByName('Filter Magic Items');
   fShowToast('⏳ Syncing magic item lists...', '✨ Sync Magic Items');
 
-  const { allMagicItemTables } = fGetAllMagicItemsList();
-
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Magic Items');
   if (!destSheet) {
@@ -507,6 +505,21 @@ function fUpdateMagicItemChoices() {
     fShowMessage('❌ Error', 'Could not find the <Filter Magic Items> sheet in this spreadsheet.');
     return;
   }
+
+  // --- NEW: Preserve checked state ---
+  const { arr: oldArr, rowTags: oldRowTags, colTags: oldColTags } = fGetSheetData('CS', 'Filter Magic Items', destSS, true);
+  const oldHeaderRow = oldRowTags.header;
+  const previouslyChecked = new Set();
+  if (oldHeaderRow !== undefined) {
+    for (let r = oldHeaderRow + 1; r < oldArr.length; r++) {
+      if (oldArr[r][oldColTags.isactive] === true) {
+        previouslyChecked.add(oldArr[r][oldColTags.tablename]);
+      }
+    }
+  }
+  // --- END NEW ---
+
+  const { allMagicItemTables } = fGetAllMagicItemsList();
 
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Magic Items', destSS, true);
   const destHeaderRow = destRowTags.header;
@@ -519,7 +532,7 @@ function fUpdateMagicItemChoices() {
   const lastRow = destSheet.getLastRow();
   const firstDataRow = destHeaderRow + 2;
   if (lastRow >= firstDataRow) {
-    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getMaxColumns() - 1).clearContent();
+    destSheet.getRange(firstDataRow, 1, lastRow - firstDataRow + 1, destSheet.getMaxColumns()).clearContent();
     if (lastRow > firstDataRow) {
       destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
     }
@@ -531,16 +544,28 @@ function fUpdateMagicItemChoices() {
       destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
     }
 
-    // --- THIS IS THE FIX ---
-    // Writing 'tableName' to the column tagged 'tablename'
     const dataToWrite = allMagicItemTables.map(item => [item.tableName, item.source]);
-    // The tags on your sheet are 'isactive', 'tablename', 'source'
     destSheet.getRange(firstDataRow, destColTags.tablename + 1, newRowCount, 2).setValues(dataToWrite);
-    destSheet.getRange(firstDataRow, destColTags.isactive + 1, newRowCount, 1).insertCheckboxes();
+
+    // --- NEW: Re-apply checked state ---
+    const newIsActiveCol = destColTags.isactive + 1;
+    const newTableNameCol = destColTags.tablename;
+    const newData = destSheet.getRange(firstDataRow, newTableNameCol + 1, newRowCount, 1).getValues();
+
+    newData.forEach((row, index) => {
+      const tableName = row[0];
+      const range = destSheet.getRange(firstDataRow + index, newIsActiveCol);
+      if (previouslyChecked.has(tableName)) {
+        range.check();
+      } else {
+        range.insertCheckboxes();
+      }
+    });
+    // --- END NEW ---
   }
 
   fEndToast();
-  fShowMessage('✅ Success', `The <Filter Magic Items> sheet has been updated with ${newRowCount} item tables.\n\nYou can now check the boxes for the tables you want to use and then run "Filter Magic Items" again.`);
+  fShowMessage('✅ Success', `The <Filter Magic Items> sheet has been updated with ${newRowCount} item tables.\n\nYour previous selections have been preserved.`);
 } // End function fUpdateMagicItemChoices
 
 
