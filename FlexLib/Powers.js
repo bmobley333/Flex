@@ -1,4 +1,4 @@
-/* global g, fGetSheetId, SpreadsheetApp, fBuildTagMaps, fShowMessage, fShowToast */
+/* global g, fGetSheetId, SpreadsheetApp, fBuildTagMaps, fShowMessage, fShowToast, fActivateSheetByName, fGetSheetData, fEndToast, fGetVerifiedLocalFile, fGetCodexSpreadsheet, fDeleteTableRow, fGetMasterSheetId */
 /* exported fBuildPowers */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,191 +199,146 @@ function fUpdatePowerTablesList(isSilent = false) {
   }
 } // End function fUpdatePowerTablesList
 
-
-/* function fFilterPowers
-   Purpose: Builds custom power selection dropdowns on the Character Sheet based on the player's choices in <Filter Powers>, aggregating from DB and Custom sources.
-   Assumptions: The user is running this from a Character Sheet.
-   Notes: This is the primary player-facing function for customizing their power list. It now also populates a local cache sheet.
-   @param {boolean} [isSilent=false] - If true, suppresses the final success message.
+/* function fBuildPowers
+   Purpose: The master function to rebuild the <Powers> sheet in the DB file from the master Tables file.
+   Assumptions: The user is running this from the DB spreadsheet.
+   Notes: This is a destructive and regenerative process that now reads from multiple source sheets.
    @returns {void}
 */
-function fFilterPowers(isSilent = false) {
-  fActivateSheetByName('Filter Powers');
-  fShowToast('⏳ Filtering power lists...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
+function fBuildPowers() {
+  fShowToast('⏳ Initializing power build...', 'Build Powers');
+  const destSheetName = 'Powers';
+  fActivateSheetByName(destSheetName); // Activate the sheet for user focus
 
-  const csSS = SpreadsheetApp.getActiveSpreadsheet();
-  const codexSS = fGetCodexSpreadsheet();
+  // 1. Get the ID of the master Tables spreadsheet from the master Ver sheet
+  const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
+  if (!tablesId) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
+    return;
+  }
 
-  // --- NEW Health Check Logic ---
-  fShowToast('⚕️ Verifying power sources...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
-  const { allPowerTables } = fGetAllPowerTablesList(); // Get a fresh list of ALL valid tables
-  const validTableNames = new Set(allPowerTables.map(t => t.tableName));
+  // 2. Define source and destination details
+  const sourceSS = SpreadsheetApp.openById(tablesId);
+  const sourceSheetNames = ['Class', 'Race', 'CombatStyles', 'Luck'];
+  const destSS = SpreadsheetApp.getActiveSpreadsheet();
+  const destSheet = destSS.getSheetByName(destSheetName);
 
-  const filterSheet = csSS.getSheetByName('Filter Powers');
-  const { arr: choicesArr, rowTags: choicesRowTags, colTags: choicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS, true);
-  const choicesHeaderRow = choicesRowTags.header;
+  if (!destSheet) {
+    fEndToast();
+    fShowMessage('❌ Error', `Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
+    return;
+  }
 
-  const orphanRows = [];
-  for (let r = choicesHeaderRow + 1; r < choicesArr.length; r++) {
-    const tableName = choicesArr[r][choicesColTags.tablename];
-    if (tableName && !validTableNames.has(tableName)) {
-      orphanRows.push({ row: r + 1, name: tableName });
+  // 3. Prepare for data aggregation and load destination sheet map
+  g.DB = {}; // Ensure the namespace for the local DB is fresh
+  const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true); // Force refresh
+  const headerRowIndex = destRowTags.header;
+
+  if (headerRowIndex === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', `The <${destSheetName}> sheet is missing a "Header" row tag.`);
+    return;
+  }
+
+  // 4. Verify destination column structure
+  const columnsToCopy = ['type', 'subtype', 'tablename', 'source', 'usage', 'action', 'abilityname', 'effect'];
+  for (const tag of columnsToCopy) {
+    if (destColTags[tag] === undefined) {
+      fEndToast();
+      fShowMessage('❌ Error', `The <${destSheetName}> sheet must have a column tagged with "${tag}".`);
+      return;
     }
   }
 
-  if (orphanRows.length > 0) {
-    fShowToast('🧹 Cleaning up stale entries...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
-    orphanRows.sort((a, b) => b.row - a.row).forEach(orphan => {
-      fDeleteTableRow(filterSheet, orphan.row);
-    });
-    const orphanNames = orphanRows.map(o => `- ${o.name}`).join('\n');
-    fShowMessage('ℹ️ List Cleaned', `The following power tables could no longer be found and have been removed from your list:\n\n${orphanNames}`);
-    // After cleaning, we must re-read the sheet to continue
-    fGetSheetData('CS', 'Filter Powers', csSS, true);
-  }
-  // --- END Health Check ---
-
-  // 1. Read the player's choices from the (potentially cleaned) <Filter Powers> sheet.
-  const { arr: finalChoicesArr, rowTags: finalChoicesRowTags, colTags: finalChoicesColTags } = fGetSheetData('CS', 'Filter Powers', csSS);
-  const finalChoicesHeaderRow = finalChoicesRowTags.header;
-
-  const tableNameCol = finalChoicesColTags.tablename;
-  const hasContent = finalChoicesArr.slice(finalChoicesHeaderRow + 1).some(row => row[tableNameCol]);
-  if (!hasContent) {
-    if (!isSilent) fEndToast();
-    fUpdatePowerTablesList();
-    return;
+  // 5. Clear the destination sheet using the robust, format-preserving method
+  fShowToast('⏳ Clearing old power data...', 'Build Powers');
+  const lastRow = destSheet.getLastRow();
+  const firstDataRow = headerRowIndex + 2;
+  if (lastRow >= firstDataRow) {
+    destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getLastColumn() - 1).clearContent();
+    if (lastRow > firstDataRow) {
+      destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
+    }
   }
 
-  if (finalChoicesHeaderRow === undefined) {
-    if (!isSilent) fEndToast();
-    fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
-    return;
-  }
-  const selectedTables = finalChoicesArr
-    .slice(finalChoicesHeaderRow + 1)
-    .filter(row => row[finalChoicesColTags.isactive] === true)
-    .map(row => ({ tableName: row[finalChoicesColTags.tablename], source: row[finalChoicesColTags.source] }));
+  // 6. Process each source sheet and aggregate the data
+  const allPowersData = [];
+  g.Tbls = {};
 
-  if (selectedTables.length === 0) {
-    if (!isSilent) fEndToast();
-    fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Filter Powers> sheet before filtering.');
-    return;
-  }
+  sourceSheetNames.forEach(sourceSheetName => {
+    fShowToast(`⏳ Processing <${sourceSheetName}>...`, 'Build Powers');
+    const sourceSheet = sourceSS.getSheetByName(sourceSheetName);
+    if (!sourceSheet) {
+      fShowToast(`⚠️ Could not find sheet: ${sourceSheetName}. Skipping.`, 'Build Powers', 10);
+      return;
+    }
 
-  // 2. Fetch all powers from all selected sources.
-  fShowToast('Fetching all selected powers...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
-  let allPowersData = [];
-  let dbHeader = [];
+    const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS);
+    const sourceHeaderIndex = sourceRowTags.header;
+    if (sourceHeaderIndex === undefined) {
+      fShowToast(`⚠️ No "Header" tag in <${sourceSheetName}>. Skipping.`, 'Build Powers', 10);
+      return;
+    }
 
-  const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
-  if (!dbFile) {
-    if (!isSilent) fEndToast();
-    fShowMessage('❌ Error', 'Could not find or restore your local "DB" file to get power data from. Please run initial setup.');
-    return;
-  }
-  const dbSS = SpreadsheetApp.open(dbFile);
-  const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
-  dbHeader = allDbPowers[dbRowTags.header];
+    for (let r = sourceHeaderIndex + 1; r < sourceArr.length; r++) {
+      const row = sourceArr[r];
+      const abilityName = row[sourceColTags.abilityname];
 
+      // --- THIS IS THE FIX ---
+      // Only process rows that have a real ability name, not the placeholder "Power" text.
+      if (abilityName && abilityName !== 'Power') {
+        const tableName = row[sourceColTags.tablename];
+        const usage = row[sourceColTags.usage];
+        const action = row[sourceColTags.action];
+        const effect = row[sourceColTags.effect];
+        const dropDownValue = `${tableName} - ${abilityName}⚡ (${usage}, ${action}) ➡ ${effect}`;
+        
+        const newRow = [];
+        newRow[destColTags.dropdown] = dropDownValue;
+        newRow[destColTags.type] = row[sourceColTags.type];
+        newRow[destColTags.subtype] = row[sourceColTags.subtype];
+        newRow[destColTags.tablename] = tableName;
+        newRow[destColTags.source] = row[sourceColTags.source];
+        newRow[destColTags.usage] = usage;
+        newRow[destColTags.action] = action;
+        newRow[destColTags.abilityname] = abilityName;
+        newRow[destColTags.effect] = effect;
 
-  // 2a. Fetch from the local DB if selected
-  const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
-  if (selectedDbTables.length > 0) {
-    const dbPowers = allDbPowers
-      .slice(dbRowTags.header + 1)
-      .filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
-    allPowersData = allPowersData.concat(dbPowers);
-  }
-
-  // 2b. Fetch from Custom Sources
-  const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
-  if (selectedCustomTables.length > 0) {
-    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
-    for (const customTable of selectedCustomTables) {
-      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
-      if (sourceInfo) {
-        const sourceId = sourceInfo[sourcesColTags.sheetid];
-        fShowToast(`Fetching from "${customTable.source}"...`, isSilent ? '⚙️ Onboarding' : 'Filter Powers');
-        try {
-          const customSS = SpreadsheetApp.openById(sourceId);
-          const { arr: customSheetPowers, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
-          if (dbHeader.length === 0) dbHeader = customSheetPowers[custRowTags.header];
-
-          const cleanTableName = customTable.tableName.replace('Cust - ', '');
-          const filteredCustomPowers = customSheetPowers
-            .slice(custRowTags.header + 1)
-            .filter(row => row[custColTags.tablename] === cleanTableName);
-
-          const mappedCustomPowers = filteredCustomPowers.map(row => {
-            const newRow = [];
-            newRow[dbColTags.dropdown] = row[custColTags.dropdown];
-            newRow[dbColTags.type] = row[custColTags.type];
-            newRow[dbColTags.subtype] = row[custColTags.subtype];
-            newRow[dbColTags.tablename] = row[custColTags.tablename];
-            newRow[dbColTags.source] = row[custColTags.source];
-            newRow[dbColTags.usage] = row[custColTags.usage];
-            newRow[dbColTags.action] = row[custColTags.action];
-            newRow[dbColTags.abilityname] = row[custColTags.abilityname];
-            newRow[dbColTags.effect] = row[custColTags.effect];
-            return newRow;
-          });
-
-          allPowersData = allPowersData.concat(mappedCustomPowers);
-        } catch (e) {
-          console.error(`Could not access custom source "${customTable.source}". Error: ${e}`);
-          fShowMessage('⚠️ Warning', `Could not access the custom source "${customTable.source}". Skipping.`);
-        }
+        allPowersData.push(newRow);
       }
     }
+  });
+
+  // 7. Sort the combined array
+  fShowToast('⏳ Sorting all powers...', 'Build Powers');
+  allPowersData.sort((a, b) => a[destColTags.dropdown].localeCompare(b[destColTags.dropdown]));
+
+
+  // 8. Write the new data
+  const newRowCount = allPowersData.length;
+  if (newRowCount > 0) {
+    fShowToast(`⏳ Writing ${newRowCount} new powers...`, 'Build Powers');
+    if (newRowCount > 1) {
+      destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
+      const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
+      const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
+      formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
+    }
+    const dataToWrite = allPowersData.map(row => {
+        const outputRow = [];
+        for (const tag in destColTags) {
+            outputRow[destColTags[tag]] = row[destColTags[tag]];
+        }
+        return outputRow.slice(1);
+    });
+    destSheet.getRange(firstDataRow, 2, newRowCount, dataToWrite[0].length).setValues(dataToWrite);
   }
 
-  const cacheSheet = csSS.getSheetByName('PowerDataCache');
-  if (!cacheSheet) {
-    if (!isSilent) fEndToast();
-    fShowMessage('❌ Error', 'Could not find the <PowerDataCache> sheet.');
-    return;
-  }
-  cacheSheet.clear();
-  if (allPowersData.length > 0) {
-    const dataToCache = [dbHeader, ...allPowersData];
-    cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
-  }
-  fShowToast('⚡ Power data cached locally.', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
+  fEndToast();
+  fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allPowersData.length} powers from all sources.`);
+} // End function fBuildPowers
 
-  const filteredPowerList = allPowersData.map(row => row[dbColTags.dropdown]);
-  const gameSheet = csSS.getSheetByName('Game');
-  if (!gameSheet) {
-    if (!isSilent) fEndToast();
-    fShowMessage('❌ Error', 'Could not find the <Game> sheet.');
-    return;
-  }
-
-  const { rowTags: gameRowTags, colTags: gameColTags } = fGetSheetData('CS', 'Game', csSS);
-  const startRow = gameRowTags.powertablestart + 1;
-  const endRow = gameRowTags.powertableend + 1;
-  const numRows = endRow - startRow + 1;
-  const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredPowerList.length > 0 ? filteredPowerList : [' '], true).setAllowInvalid(false).build();
-  
-  // --- THIS IS THE FIX ---
-  // Use explicit, robust tag checking instead of fragile string matching.
-  if (gameColTags.powerdropdown1 !== undefined) {
-      const colIndex = gameColTags.powerdropdown1 + 1;
-      gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
-  }
-  if (gameColTags.powerdropdown2 !== undefined) {
-    const colIndex = gameColTags.powerdropdown2 + 1;
-    gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
-  }
-  // Add more explicit checks here if more dropdowns are added to the <Game> sheet in the future.
-
-  if (isSilent) {
-    fShowToast('✅ Power dropdowns updated.', '⚙️ Onboarding');
-  } else {
-    fEndToast();
-    fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);
-  }
-} // End function fFilterPowers
 
 /* function fPerformPowerHealthCheck
    Purpose: A helper to find and remove any stale ("orphaned") power tables from the <Filter Powers> sheet.
@@ -597,15 +552,6 @@ function fApplyPowerDropdowns(allPowersData) {
   
   return filteredPowerList.length;
 } // End function fApplyPowerDropdowns
-
-
-
-
-
-
-
-
-
 
 
 /* function fFilterPowers
