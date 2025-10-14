@@ -58,8 +58,8 @@ function run(command, sheetToActivate) {
       FilterPowers: () => fFilterPowers(false),
       FilterMagicItems: () => fFilterMagicItems(false),
       PrepGameForPaper: fPrepGameForPaper,
-      VerifySkills: fVerifySkills,
-      VerifySkillSets: fVerifySkillSets,
+      VerifyIndividualSkills: fVerifyIndividualSkills,
+      VerifySkillSetLists: fVerifySkillSetLists,
       BuildSkillSets: fBuildSkillSets,
     };
 

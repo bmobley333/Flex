@@ -71,22 +71,22 @@ function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
 
-/* function fMenuVerifySkillSets
+/* function fMenuVerifySkillSetLists
    Purpose: Local trigger for the "Verify" menu item under "Skill Sets".
    Assumptions: None.
    Notes: Acts as a pass-through to the central dispatcher in FlexLib.
    @returns {void}
 */
-function fMenuVerifySkillSets() {
-  FlexLib.run('VerifySkillSets', 'SkillSets');
-} // End function fMenuVerifySkillSets
+function fMenuVerifySkillSetLists() {
+  FlexLib.run('VerifySkillSetLists', 'SkillSets');
+} // End function fMenuVerifySkillSetLists
 
-/* function fMenuVerifySkills
+/* function fMenuVerifyIndividualSkills
    Purpose: Local trigger for the "Verify Skill Types" menu item.
    Assumptions: None.
    Notes: Acts as a pass-through to the central dispatcher in FlexLib.
    @returns {void}
 */
-function fMenuVerifySkills() {
-  FlexLib.run('VerifySkills');
-} // End function fMenuVerifySkills
+function fMenuVerifyIndividualSkills() {
+  FlexLib.run('VerifyIndividualSkills');
+} // End function fMenuVerifyIndividualSkills

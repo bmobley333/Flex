@@ -1,5 +1,5 @@
 /* global fShowToast, SpreadsheetApp, fGetSheetData, fShowMessage, fEndToast, fPromptWithInput, g, fGetMasterSheetId, fClearAndWriteData, fActivateSheetByName */
-/* exported fVerifySkills, fVerifySkillSets, fBuildSkillSets */
+/* exported fVerifyIndividualSkills, fVerifySkillSetLists, fBuildSkillSets */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
@@ -102,13 +102,13 @@ function fBuildSkillSets() {
   }
 } // End function fBuildSkillSets
 
-/* function fVerifySkillSets
+/* function fVerifySkillSetLists
    Purpose: The master workflow for verifying the skill type emojis within the <SkillSets> sheet.
    Assumptions: Run from a 'Tables' sheet context. The active sheet is <SkillSets>.
    Notes: Iterates through all data rows, splits the comma-separated skill list, and validates each individual skill.
    @returns {void}
 */
-function fVerifySkillSets() {
+function fVerifySkillSetLists() {
   fShowToast('⏳ Verifying all skill sets...', '🎓 Skill Set Verification');
   const sheet = SpreadsheetApp.getActiveSheet();
   const sheetName = sheet.getName();
@@ -168,19 +168,19 @@ function fVerifySkillSets() {
       fShowMessage('✅ Verification Complete', 'All skill sets are correctly formatted!');
     }
   } catch (e) {
-    console.error(`❌ CRITICAL ERROR in fVerifySkillSets: ${e.message}\n${e.stack}`);
+    console.error(`❌ CRITICAL ERROR in fVerifySkillSetLists: ${e.message}\n${e.stack}`);
     fEndToast();
     fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
   }
-} // End function fVerifySkillSets
+} // End function fVerifySkillSetLists
 
-/* function fVerifySkills
+/* function fVerifyIndividualSkills
    Purpose: The master workflow for verifying the skill type emoji in the active sheet.
    Assumptions: Run from a 'Tables' sheet context. The active sheet has a 'Header' row tag and a 'skills' column tag.
    Notes: Iterates through all data rows and uses a helper to validate and correct each skill string.
    @returns {void}
 */
-function fVerifySkills() {
+function fVerifyIndividualSkills() {
   fShowToast('⏳ Verifying all skill types...', '🎓 Skill Verification');
   const sheet = SpreadsheetApp.getActiveSheet();
   const sheetName = sheet.getName();
@@ -219,11 +219,11 @@ function fVerifySkills() {
       fShowMessage('✅ Verification Complete', 'All skill types are correctly formatted!');
     }
   } catch (e) {
-    console.error(`❌ CRITICAL ERROR in fVerifySkills: ${e.message}\n${e.stack}`);
+    console.error(`❌ CRITICAL ERROR in fVerifyIndividualSkills: ${e.message}\n${e.stack}`);
     fEndToast();
     fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
   }
-} // End function fVerifySkills
+} // End function fVerifyIndividualSkills
 
 
 /* function fValidateAndCorrectSkillString
