@@ -22,6 +22,7 @@ function run(command, sheetToActivate) {
 
     const commandMap = {
       // --- THIS IS THE FIX ---
+      CharacterOnboarding: fCharacterOnboarding,
       ClearPowerFilters: () => {
         fClearAllFilterCheckboxes('Filter Powers');
         fFilterPowers();
@@ -30,7 +31,6 @@ function run(command, sheetToActivate) {
         fClearAllFilterCheckboxes('Filter Magic Items');
         fFilterMagicItems();
       },
-      CharacterOnboarding: fCharacterOnboarding,
       InvalidateGameCache: () => fInvalidateSheetCache('CS', 'Game'),
       ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,
@@ -40,8 +40,8 @@ function run(command, sheetToActivate) {
       VerifyAndPublishMagicItems: fVerifyAndPublishMagicItems,
       DeleteSelectedMagicItems: fDeleteSelectedMagicItems,
       CreateCustomList: fCreateNewCustomList,
-      SyncPowerChoices: fUpdatePowerTablesList,
-      SyncMagicItemChoices: fUpdateMagicItemChoices,
+      SyncPowerChoices: () => fUpdatePowerTablesList(false),
+      SyncMagicItemChoices: () => fUpdateMagicItemChoices(false),
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
@@ -55,8 +55,8 @@ function run(command, sheetToActivate) {
       ShowPlaceholder: fShowPlaceholderMessage,
       BuildPowers: fBuildPowers,
       BuildMagicItems: fBuildMagicItems,
-      FilterPowers: fFilterPowers,
-      FilterMagicItems: fFilterMagicItems,
+      FilterPowers: () => fFilterPowers(false),
+      FilterMagicItems: () => fFilterMagicItems(false),
       PrepGameForPaper: fPrepGameForPaper,
     };
 

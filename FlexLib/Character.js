@@ -45,16 +45,19 @@ function fCharacterOnboarding() {
   fShowToast('⏳ Starting first-time character setup...', '⚙️ Onboarding');
 
   // 1. Sync all available lists
-  fUpdatePowerTablesList();
-  fUpdateMagicItemChoices();
+  fUpdatePowerTablesList(true); // Run silently
+  fUpdateMagicItemChoices(true); // Run silently
 
   // 2. Set the default checkboxes for core DB sources
   fCheckCoreSources('Filter Powers');
   fCheckCoreSources('Filter Magic Items');
 
   // 3. Run the initial filters to populate the dropdowns
-  fFilterPowers();
-  fFilterMagicItems();
+  fFilterPowers(true); // Run silently
+  fFilterMagicItems(true); // Run silently
+
+  // 4. Set the final active sheet for the player
+  fActivateSheetByName('Game');
 
   fEndToast(); // A final "Complete!" before the main dialog appears.
 } // End function fCharacterOnboarding

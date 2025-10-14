@@ -45,7 +45,7 @@ function fClearAllFilterCheckboxes(sheetName) {
   }
 
   fEndToast();
-  // No final message here; the subsequent filter function will provide it.
+  fShowMessage('✅ Success', 'All selections have been cleared.\n\n⚠️ You must now select at least one table and run the "Filter..." command or click the green "Refresh" button to update your character\'s dropdowns.');
 } // End function fClearAllFilterCheckboxes
 
 /* function fGetAllPowerTablesList
@@ -106,17 +106,18 @@ function fGetAllPowerTablesList() {
 /* function fUpdatePowerTablesList
    Purpose: Updates the <Filter Powers> sheet with a unique list of all TableNames from the PLAYER'S LOCAL DB and all registered custom sources.
    Assumptions: The user is running this from a Character Sheet.
-   Notes: Aggregates from multiple sources and sorts them into logical groups.
+   Notes: Aggregates from multiple sources and sorts them into logical groups. Can be run silently.
+   @param {boolean} [isSilent=false] - If true, suppresses the final success message.
    @returns {void}
 */
-function fUpdatePowerTablesList() {
+function fUpdatePowerTablesList(isSilent = false) {
   fActivateSheetByName('Filter Powers');
-  fShowToast('⏳ Syncing power tables...', 'Sync Power Tables');
+  fShowToast('⏳ Syncing power tables...', isSilent ? '⚙️ Onboarding' : 'Sync Power Tables');
 
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Powers');
   if (!destSheet) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Filter Powers> sheet in this spreadsheet.');
     return;
   }
@@ -139,7 +140,7 @@ function fUpdatePowerTablesList() {
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Powers', destSS, true);
   const destHeaderRow = destRowTags.header;
   if (destHeaderRow === undefined) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
     return;
   }
@@ -160,7 +161,7 @@ function fUpdatePowerTablesList() {
       const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
       const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
       formatSourceRange.copyTo(formatDestRange, {
-        formatOnly: true
+        formatOnly: true,
       });
     }
 
@@ -190,8 +191,12 @@ function fUpdatePowerTablesList() {
     // --- END NEW ---
   }
 
-  fEndToast();
-  fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.\n\nYour previous selections have been preserved.`);
+  if (isSilent) {
+    fShowToast('✅ Power tables synced.', '⚙️ Onboarding');
+  } else {
+    fEndToast();
+    fShowMessage('✅ Success', `The <Filter Powers> sheet has been updated with ${newRowCount} power tables.\n\nYour previous selections have been preserved.`);
+  }
 } // End function fUpdatePowerTablesList
 
 
@@ -199,17 +204,18 @@ function fUpdatePowerTablesList() {
    Purpose: Builds custom power selection dropdowns on the Character Sheet based on the player's choices in <Filter Powers>, aggregating from DB and Custom sources.
    Assumptions: The user is running this from a Character Sheet.
    Notes: This is the primary player-facing function for customizing their power list. It now also populates a local cache sheet.
+   @param {boolean} [isSilent=false] - If true, suppresses the final success message.
    @returns {void}
 */
-function fFilterPowers() {
+function fFilterPowers(isSilent = false) {
   fActivateSheetByName('Filter Powers');
-  fShowToast('⏳ Filtering power lists...', 'Filter Powers');
+  fShowToast('⏳ Filtering power lists...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
 
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
   const codexSS = fGetCodexSpreadsheet();
 
   // --- NEW Health Check Logic ---
-  fShowToast('⚕️ Verifying power sources...', 'Filter Powers');
+  fShowToast('⚕️ Verifying power sources...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
   const { allPowerTables } = fGetAllPowerTablesList(); // Get a fresh list of ALL valid tables
   const validTableNames = new Set(allPowerTables.map(t => t.tableName));
 
@@ -226,7 +232,7 @@ function fFilterPowers() {
   }
 
   if (orphanRows.length > 0) {
-    fShowToast('🧹 Cleaning up stale entries...', 'Filter Powers');
+    fShowToast('🧹 Cleaning up stale entries...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
     orphanRows.sort((a, b) => b.row - a.row).forEach(orphan => {
       fDeleteTableRow(filterSheet, orphan.row);
     });
@@ -244,13 +250,13 @@ function fFilterPowers() {
   const tableNameCol = finalChoicesColTags.tablename;
   const hasContent = finalChoicesArr.slice(finalChoicesHeaderRow + 1).some(row => row[tableNameCol]);
   if (!hasContent) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fUpdatePowerTablesList();
     return;
   }
 
   if (finalChoicesHeaderRow === undefined) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Powers> sheet.');
     return;
   }
@@ -260,19 +266,19 @@ function fFilterPowers() {
     .map(row => ({ tableName: row[finalChoicesColTags.tablename], source: row[finalChoicesColTags.source] }));
 
   if (selectedTables.length === 0) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Filter Powers> sheet before filtering.');
     return;
   }
 
   // 2. Fetch all powers from all selected sources.
-  fShowToast('Fetching all selected powers...', 'Filter Powers');
+  fShowToast('Fetching all selected powers...', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
   let allPowersData = [];
   let dbHeader = [];
 
   const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
   if (!dbFile) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find or restore your local "DB" file to get power data from. Please run initial setup.');
     return;
   }
@@ -298,7 +304,7 @@ function fFilterPowers() {
       const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
       if (sourceInfo) {
         const sourceId = sourceInfo[sourcesColTags.sheetid];
-        fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Powers');
+        fShowToast(`Fetching from "${customTable.source}"...`, isSilent ? '⚙️ Onboarding' : 'Filter Powers');
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
           const { arr: customSheetPowers, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
@@ -334,7 +340,7 @@ function fFilterPowers() {
 
   const cacheSheet = csSS.getSheetByName('PowerDataCache');
   if (!cacheSheet) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find the <PowerDataCache> sheet.');
     return;
   }
@@ -343,12 +349,12 @@ function fFilterPowers() {
     const dataToCache = [dbHeader, ...allPowersData];
     cacheSheet.getRange(1, 1, dataToCache.length, dataToCache[0].length).setValues(dataToCache);
   }
-  fShowToast('⚡ Power data cached locally.', 'Filter Powers');
+  fShowToast('⚡ Power data cached locally.', isSilent ? '⚙️ Onboarding' : 'Filter Powers');
 
   const filteredPowerList = allPowersData.map(row => row[dbColTags.dropdown]);
   const gameSheet = csSS.getSheetByName('Game');
   if (!gameSheet) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Game> sheet.');
     return;
   }
@@ -371,9 +377,12 @@ function fFilterPowers() {
   }
   // Add more explicit checks here if more dropdowns are added to the <Game> sheet in the future.
 
-
-  fEndToast();
-  fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);
+  if (isSilent) {
+    fShowToast('✅ Power dropdowns updated.', '⚙️ Onboarding');
+  } else {
+    fEndToast();
+    fShowMessage('✅ Success!', `Your power selection dropdowns have been updated with ${filteredPowerList.length} powers.`);
+  }
 } // End function fFilterPowers
 
 /* function fBuildPowers

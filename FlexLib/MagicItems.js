@@ -491,17 +491,18 @@ function fGetAllMagicItemsList() {
 /* function fUpdateMagicItemChoices
    Purpose: Updates the <Filter Magic Items> sheet with a unique list of all TableNames from the DB and all custom sources.
    Assumptions: The user is running this from a Character Sheet.
-   Notes: Aggregates from multiple sources and sorts them.
+   Notes: Aggregates from multiple sources and sorts them. Can be run silently.
+   @param {boolean} [isSilent=false] - If true, suppresses the final success message.
    @returns {void}
 */
-function fUpdateMagicItemChoices() {
+function fUpdateMagicItemChoices(isSilent = false) {
   fActivateSheetByName('Filter Magic Items');
-  fShowToast('⏳ Syncing magic item lists...', '✨ Sync Magic Items');
+  fShowToast('⏳ Syncing magic item lists...', isSilent ? '⚙️ Onboarding' : '✨ Sync Magic Items');
 
   const destSS = SpreadsheetApp.getActiveSpreadsheet();
   const destSheet = destSS.getSheetByName('Filter Magic Items');
   if (!destSheet) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find the <Filter Magic Items> sheet in this spreadsheet.');
     return;
   }
@@ -524,7 +525,7 @@ function fUpdateMagicItemChoices() {
   const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('CS', 'Filter Magic Items', destSS, true);
   const destHeaderRow = destRowTags.header;
   if (destHeaderRow === undefined) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find a "Header" tag in the <Filter Magic Items> sheet.');
     return;
   }
@@ -564,20 +565,25 @@ function fUpdateMagicItemChoices() {
     // --- END NEW ---
   }
 
-  fEndToast();
-  fShowMessage('✅ Success', `The <Filter Magic Items> sheet has been updated with ${newRowCount} item tables.\n\nYour previous selections have been preserved.`);
+  if (isSilent) {
+    fShowToast('✅ Magic item tables synced.', '⚙️ Onboarding');
+  } else {
+    fEndToast();
+    fShowMessage('✅ Success', `The <Filter Magic Items> sheet has been updated with ${newRowCount} item tables.\n\nYour previous selections have been preserved.`);
+  }
 } // End function fUpdateMagicItemChoices
 
 
 /* function fFilterMagicItems
    Purpose: Builds custom magic item dropdowns on the Character Sheet based on the player's choices in <Filter Magic Items>.
    Assumptions: The user is running this from a Character Sheet.
-   Notes: This is the primary player-facing function for customizing their item list.
+   Notes: This is the primary player-facing function for customizing their item list. Can be run silently.
+   @param {boolean} [isSilent=false] - If true, suppresses the final success message.
    @returns {void}
 */
-function fFilterMagicItems() {
+function fFilterMagicItems(isSilent = false) {
   fActivateSheetByName('Filter Magic Items');
-  fShowToast('⏳ Filtering magic items...', '✨ Filter Magic Items');
+  fShowToast('⏳ Filtering magic items...', isSilent ? '⚙️ Onboarding' : '✨ Filter Magic Items');
   const csSS = SpreadsheetApp.getActiveSpreadsheet();
   const codexSS = fGetCodexSpreadsheet();
 
@@ -587,7 +593,7 @@ function fFilterMagicItems() {
 
   const tableNameCol = choicesColTags.tablename;
   if (!choicesArr.slice(choicesHeaderRow + 1).some(row => row[tableNameCol])) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fUpdateMagicItemChoices();
     return;
   }
@@ -598,13 +604,13 @@ function fFilterMagicItems() {
     .map(row => ({ tableName: row[choicesColTags.tablename], source: row[choicesColTags.source] }));
 
   if (selectedTables.length === 0) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('ℹ️ No Filters Selected', 'Please check one or more boxes on the <Filter Magic Items> sheet before filtering.');
     return;
   }
 
   // 2. Fetch all item data from all items within the selected TABLES
-  fShowToast('Fetching all selected items...', '✨ Filter Magic Items');
+  fShowToast('Fetching all selected items...', isSilent ? '⚙️ Onboarding' : '✨ Filter Magic Items');
   let allItemsData = [];
   let cacheHeader = [];
 
@@ -629,7 +635,7 @@ function fFilterMagicItems() {
       const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
       if (sourceInfo) {
         const sourceId = sourceInfo[sourcesColTags.sheetid];
-        fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Magic Items');
+        fShowToast(`Fetching from "${customTable.source}"...`, isSilent ? '⚙️ Onboarding' : 'Filter Magic Items');
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
           const { arr: customSheetItems, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedMagicItems', customSS);
@@ -672,11 +678,11 @@ function fFilterMagicItems() {
     cacheSheet.getRange(1, 1, 1, cacheHeader.length).setValues([cacheHeader]);
     cacheSheet.getRange(2, 1, allItemsData.length, allItemsData[0].length).setValues(allItemsData);
   }
-  fShowToast('✨ Item data cached locally.', 'Filter Magic Items');
+  fShowToast('✨ Item data cached locally.', isSilent ? '⚙️ Onboarding' : 'Filter Magic Items');
 
   const dropDownColIndex = dbColTags.dropdown;
   if (dropDownColIndex === undefined) {
-    fEndToast();
+    if (!isSilent) fEndToast();
     fShowMessage('❌ Error', 'Could not find a "dropdown" column tag in the source data.');
     return;
   }
@@ -689,8 +695,6 @@ function fFilterMagicItems() {
   const numRows = endRow - startRow + 1;
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(filteredItemList.length > 0 ? filteredItemList : [' '], true).setAllowInvalid(false).build();
 
-  // --- THIS IS THE FIX ---
-  // Use explicit, robust tag checking instead of fragile string matching.
   if (gameColTags.magicitemdropdown1 !== undefined) {
     const colIndex = gameColTags.magicitemdropdown1 + 1;
     gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
@@ -699,10 +703,12 @@ function fFilterMagicItems() {
     const colIndex = gameColTags.magicitemdropdown2 + 1;
     gameSheet.getRange(startRow, colIndex, numRows, 1).setDataValidation(rule);
   }
-  // Add more explicit checks here if more dropdowns are added to the <Game> sheet in the future.
 
-
-  fEndToast();
-  fShowMessage('✅ Success!', `Your magic item dropdowns have been updated with ${filteredItemList.length} items.`);
+  if (isSilent) {
+    fShowToast('✅ Magic item dropdowns updated.', '⚙️ Onboarding');
+  } else {
+    fEndToast();
+    fShowMessage('✅ Success!', `Your magic item dropdowns have been updated with ${filteredItemList.length} items.`);
+  }
 } // End function fFilterMagicItems
 
