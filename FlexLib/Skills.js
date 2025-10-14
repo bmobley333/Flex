@@ -1,10 +1,106 @@
-/* global fShowToast, SpreadsheetApp, fGetSheetData, fShowMessage, fEndToast, fPromptWithInput */
-/* exported fVerifySkills, fVerifySkillSets */
+/* global fShowToast, SpreadsheetApp, fGetSheetData, fShowMessage, fEndToast, fPromptWithInput, g, fGetMasterSheetId, fClearAndWriteData, fActivateSheetByName */
+/* exported fVerifySkills, fVerifySkillSets, fBuildSkillSets */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // End - n/a
 // Start - Skill Verification
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/* function fGetSkillSetSourceData
+   Purpose: A helper to fetch, process, and aggregate all skill set data from the master Tables file.
+   Assumptions: The 'Tbls' file ID is valid and the <SkillSets> source sheet exists.
+   Notes: A helper for the fBuildSkillSets function.
+   @param {object} destColTags - The column tag map from the destination <SkillSets> sheet.
+   @returns {Array<Array<string>>} A 2D array of the aggregated and processed skill set data.
+*/
+function fGetSkillSetSourceData(destColTags) {
+  const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
+  if (!tablesId) {
+    throw new Error('Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
+  }
+
+  const sourceSS = SpreadsheetApp.openById(tablesId);
+  const sourceSheetName = 'SkillSets';
+  fShowToast(`⏳ Processing <${sourceSheetName}>...`, '🎓 Build Skill Sets');
+  const sourceSheet = sourceSS.getSheetByName(sourceSheetName);
+  if (!sourceSheet) {
+    throw new Error(`Could not find the source sheet named "${sourceSheetName}" in the Tables spreadsheet.`);
+  }
+
+  g.Tbls = {}; // Ensure a fresh cache namespace
+  const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS);
+  const sourceHeaderIndex = sourceRowTags.header;
+  if (sourceHeaderIndex === undefined) {
+    throw new Error(`The source <${sourceSheetName}> sheet is missing a "Header" row tag.`);
+  }
+
+  const allSkillSetsData = [];
+  for (let r = sourceHeaderIndex + 1; r < sourceArr.length; r++) {
+    const row = sourceArr[r];
+    const type = row[sourceColTags.type];
+
+    // Only process rows that are designated as a "Skill Set"
+    if (type === 'Skill Set') {
+      const tableName = row[sourceColTags.tablename];
+      const skillSet = row[sourceColTags.skillset];
+      const skillList = row[sourceColTags.skilllist];
+      const dropDownValue = `${tableName} - ${skillSet} ➡ ${skillList}`;
+
+      const newRow = [];
+      newRow[destColTags.dropdown] = dropDownValue;
+      newRow[destColTags.type] = type;
+      newRow[destColTags.subtype] = row[sourceColTags.subtype];
+      newRow[destColTags.tablename] = tableName;
+      newRow[destColTags.source] = row[sourceColTags.source];
+      newRow[destColTags.skillset] = skillSet;
+      newRow[destColTags.skilllist] = skillList;
+
+      allSkillSetsData.push(newRow);
+    }
+  }
+
+  // Sort the combined array by the DropDown string
+  fShowToast('⏳ Sorting all skill sets...', '🎓 Build Skill Sets');
+  allSkillSetsData.sort((a, b) => a[destColTags.dropdown].localeCompare(b[destColTags.dropdown]));
+
+  return allSkillSetsData;
+} // End function fGetSkillSetSourceData
+
+/* function fBuildSkillSets
+   Purpose: The master function to rebuild the <SkillSets> sheet in the DB file from the master Tables file.
+   Assumptions: The user is running this from the DB spreadsheet.
+   Notes: This is a destructive and regenerative process.
+   @returns {void}
+*/
+function fBuildSkillSets() {
+  fShowToast('⏳ Initializing skill set build...', '🎓 Build Skill Sets');
+  const destSheetName = 'SkillSets';
+  fActivateSheetByName(destSheetName);
+
+  try {
+    const destSS = SpreadsheetApp.getActiveSpreadsheet();
+    const destSheet = destSS.getSheetByName(destSheetName);
+    if (!destSheet) {
+      throw new Error(`Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
+    }
+
+    g.DB = {}; // Ensure a fresh cache namespace
+    const { colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true);
+
+    const allSkillSetData = fGetSkillSetSourceData(destColTags);
+
+    fShowToast(`⏳ Writing ${allSkillSetData.length} new skill sets...`, '🎓 Build Skill Sets');
+    fClearAndWriteData(destSheet, allSkillSetData, destColTags);
+
+    fEndToast();
+    fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allSkillSetData.length} skill sets from the Tables file.`);
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in fBuildSkillSets: ${e.message}\n${e.stack}`);
+    fEndToast();
+    fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
+  }
+} // End function fBuildSkillSets
 
 /* function fVerifySkillSets
    Purpose: The master workflow for verifying the skill type emojis within the <SkillSets> sheet.

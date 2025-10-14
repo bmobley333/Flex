@@ -37,6 +37,15 @@ function fActivateMenus() {
   SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
 } // End function fActivateMenus
 
+/* function fMenuBuildSkillSets
+   Purpose: Local trigger for the "Build Skill Sets" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuBuildSkillSets() {
+  FlexLib.run('BuildSkillSets', 'SkillSets');
+} // End function fMenuBuildSkillSets
 
 /* function fMenuBuildMagicItems
    Purpose: Local trigger for the "Build Magic Items" menu item.

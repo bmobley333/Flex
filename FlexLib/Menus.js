@@ -122,8 +122,11 @@ function fCreateDesignerMenu(context = '') {
       .addItem('Build Powers from Tables', 'fMenuBuildPowers');
     const magicItemsSubMenu = ui.createMenu('✨ Magic Items')
       .addItem('Build Magic Items from Tables', 'fMenuBuildMagicItems');
+    const skillSetsSubMenu = ui.createMenu('🎓 Skill Sets')
+      .addItem('Build Skill Sets from Tables', 'fMenuBuildSkillSets');
     menu.addSubMenu(powersSubMenu);
     menu.addSubMenu(magicItemsSubMenu);
+    menu.addSubMenu(skillSetsSubMenu);
     menu.addSeparator();
   }
 

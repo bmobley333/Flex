@@ -60,6 +60,7 @@ function run(command, sheetToActivate) {
       PrepGameForPaper: fPrepGameForPaper,
       VerifySkills: fVerifySkills,
       VerifySkillSets: fVerifySkillSets,
+      BuildSkillSets: fBuildSkillSets,
     };
 
     if (commandMap[command]) {
