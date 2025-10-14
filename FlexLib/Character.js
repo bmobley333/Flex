@@ -6,6 +6,58 @@
 // Start - Character Management
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fCheckCoreSources
+   Purpose: A helper to programmatically check all 'isactive' checkboxes for core 'DB' sources on a given filter sheet.
+   Assumptions: The sheet has columns tagged 'isactive' and 'source'.
+   Notes: This is a reusable helper for the character onboarding process.
+   @param {string} sheetName - The name of the filter sheet to process (e.g., 'Filter Powers').
+   @returns {void}
+*/
+function fCheckCoreSources(sheetName) {
+  fShowToast(`Setting default filters for <${sheetName}>...`, '⚙️ Onboarding');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+
+  const { arr, rowTags, colTags } = fGetSheetData('CS', sheetName, ss, true); // Force refresh
+  const headerRow = rowTags.header;
+  if (headerRow === undefined) return;
+
+  const isActiveCol = colTags.isactive;
+  const sourceCol = colTags.source;
+  if (isActiveCol === undefined || sourceCol === undefined) return;
+
+  // Find all rows where the source is 'DB' and check their 'isactive' box
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r][sourceCol] === 'DB') {
+      sheet.getRange(r + 1, isActiveCol + 1).check();
+    }
+  }
+} // End function fCheckCoreSources
+
+/* function fCharacterOnboarding
+   Purpose: The master orchestrator for the entire one-time, first-use setup process for a new character sheet.
+   Assumptions: This is run from the fActivateMenus trigger in a CS.
+   Notes: This function syncs lists, sets default checkboxes, and runs the initial filters.
+   @returns {void}
+*/
+function fCharacterOnboarding() {
+  fShowToast('⏳ Starting first-time character setup...', '⚙️ Onboarding');
+
+  // 1. Sync all available lists
+  fUpdatePowerTablesList();
+  fUpdateMagicItemChoices();
+
+  // 2. Set the default checkboxes for core DB sources
+  fCheckCoreSources('Filter Powers');
+  fCheckCoreSources('Filter Magic Items');
+
+  // 3. Run the initial filters to populate the dropdowns
+  fFilterPowers();
+  fFilterMagicItems();
+
+  fEndToast(); // A final "Complete!" before the main dialog appears.
+} // End function fCharacterOnboarding
 
 /* function fUpdateCharacterRulesLinks
    Purpose: Updates all hyperlinks in the <Characters> sheet for a specific rules version.

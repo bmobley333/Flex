@@ -46,8 +46,13 @@ function fActivateMenus() {
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperty(SCRIPT_INITIALIZED_KEY, 'true');
 
+  // --- NEW ---
+  // Run the one-time character sheet onboarding process.
+  FlexLib.run('CharacterOnboarding');
+  // --- END NEW ---
+
   const title = 'IMPORTANT - Please Refresh Browser Tab';
-  const message = '✅ Success! The script has been authorized.\n\nPlease refresh this browser tab now to load the full custom menus.';
+  const message = '✅ Success! The script has been authorized and your sheet has been set up with all core game choices.\n\nPlease refresh this browser tab now to load the full custom menus.';
   SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
 } // End function fActivateMenus
 

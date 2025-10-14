@@ -22,6 +22,7 @@ function run(command, sheetToActivate) {
 
     const commandMap = {
       // --- THIS IS THE FIX ---
+      CharacterOnboarding: fCharacterOnboarding,
       InvalidateGameCache: () => fInvalidateSheetCache('CS', 'Game'),
       ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,
