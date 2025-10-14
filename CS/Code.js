@@ -151,6 +151,16 @@ function buttonFilterPowers() {
 } // End function buttonFilterPowers
 
 
+/* function buttonFilterMagicItems
+   Purpose: Local trigger for a button, mimics the "Filter Magic Items" menu item.
+   Assumptions: None.
+   Notes: Assign this function name to a button in the sheet to trigger the FilterMagicItems command.
+   @returns {void}
+*/
+function buttonFilterMagicItems() {
+  FlexLib.run('FilterMagicItems');
+} // End function buttonFilterMagicItems
+
 /* function onChange
    Purpose: An installable trigger that invalidates the session cache for the <Game> sheet when its structure changes.
    Assumptions: This trigger is manually installed for the spreadsheet.

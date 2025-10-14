@@ -18,7 +18,6 @@
 function fInvalidateSheetCache(ssKey, sheetName) {
   if (g[ssKey] && g[ssKey][sheetName]) {
     delete g[ssKey][sheetName];
-    console.log(`Cache invalidated for ${ssKey}.${sheetName} due to structural sheet change.`);
   }
 } // End function fInvalidateSheetCache
 
