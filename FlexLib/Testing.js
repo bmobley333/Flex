@@ -26,11 +26,13 @@ function fClearAllScriptProperties() {
    @returns {void}
 */
 function fTestIdManagement() {
+  fShowToast('⏳ Running ID cache test...', 'Test');
   fGetSheetId(g.CURRENT_VERSION, 'DB'); // This triggers the caching logic
 
   const dbInfo = g.sheetIDs[g.CURRENT_VERSION]['DB'];
 
   if (!dbInfo) {
+    fEndToast();
     throw new Error("Could not retrieve info for ssAbbr 'DB'. Check the 'Versions' sheet.");
   }
 
@@ -40,5 +42,6 @@ function fTestIdManagement() {
   message += `Abbreviation: ${dbInfo.ssabbr}\n`;
   message += `ID: ${dbInfo.ssid}`;
 
+  fEndToast();
   fShowMessage('Test Results', message);
 } // End function fTestIdManagement

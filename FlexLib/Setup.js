@@ -13,6 +13,7 @@
    @returns {void}
 */
 function fInitialSetup() {
+  fShowToast('⏳ Initializing one-time setup...', '⚙️ Setup');
   const welcomeMessage = 'Welcome to Flex! This will perform a one-time setup to prepare your Player\'s Codex.\n\n⚠️ This process may take several minutes to complete. Please do not close this spreadsheet or navigate away until you see the "Setup Complete!" message.';
   fShowMessage('👋 Welcome!', welcomeMessage);
 

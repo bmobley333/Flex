@@ -372,6 +372,7 @@ function fCreateLatestCharacter() {
    @returns {void}
 */
 function fCreateLegacyCharacter() {
+  fShowToast('⏳ Initializing legacy character creation...', 'New Character');
   const ssKey = 'Codex';
   const sheetName = 'MyVersions';
   const codexSS = fGetCodexSpreadsheet();
@@ -385,6 +386,7 @@ function fCreateLegacyCharacter() {
     .map(row => parseFloat(row[colTags.version]));
 
   if (versionsWithCS.length === 0) {
+    fEndToast();
     fShowMessage('❌ Error', 'No versions with a Character Sheet (CS) were found in <MyVersions>.\n\nPlease run the setup from the main menu if you have not done so.');
     return;
   }
@@ -393,6 +395,7 @@ function fCreateLegacyCharacter() {
   const legacyVersions = [...new Set(versionsWithCS.filter(v => v < latestVersion).map(String))];
 
   if (legacyVersions.length === 0) {
+    fEndToast();
     fShowMessage('ℹ️ No Legacy Versions', 'No older legacy versions are available to choose from.');
     return;
   }
@@ -401,11 +404,13 @@ function fCreateLegacyCharacter() {
   const selectedVersion = fPromptWithInput('Select Legacy Version', promptMessage);
 
   if (selectedVersion === null) {
+    fEndToast();
     fShowMessage('ℹ️ Canceled', 'Character creation has been canceled.');
     return;
   }
 
   if (!legacyVersions.includes(selectedVersion)) {
+    fEndToast();
     fShowMessage('❌ Error', `Invalid version selected. Please enter one of the available versions: ${legacyVersions.join(', ')}`);
     return;
   }
