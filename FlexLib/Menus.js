@@ -132,6 +132,14 @@ function fCreateDesignerMenu(context = '') {
     menu.addSeparator();
   }
 
+  if (context === 'Tables') {
+    const skillsSubMenu = ui.createMenu('🎓 Skills')
+      .addItem('Verify Skill Types', 'fMenuVerifySkills');
+    menu.addSubMenu(skillsSubMenu);
+    menu.addSeparator();
+  }
+
+
   menu.addItem('Tag Verification', 'fMenuTagVerification');
   menu.addItem('Trim Empty Rows/Cols', 'fMenuTrimSheet');
   menu.addItem('Show/Hide All', 'fMenuToggleVisibility');

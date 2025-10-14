@@ -70,3 +70,13 @@ function fMenuClearProperties() {
 function fMenuTest() {
   FlexLib.run('Test');
 } // End function fMenuTest
+
+/* function fMenuVerifySkills
+   Purpose: Local trigger for the "Verify Skill Types" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuVerifySkills() {
+  FlexLib.run('VerifySkills');
+} // End function fMenuVerifySkills
