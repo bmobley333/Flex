@@ -656,7 +656,7 @@ function fFilterMagicItems() {
     return;
   }
 
-  const filteredItemList = allItemsData.map(row => row[dropDownColIndex]).sort();
+  const filteredItemList = allItemsData.map(row => row[dropDownColIndex]);
   const gameSheet = csSS.getSheetByName('Game');
   const { rowTags: gameRowTags, colTags: gameColTags } = fGetSheetData('CS', 'Game', csSS);
   const startRow = gameRowTags.magicitemtablestart + 1;
