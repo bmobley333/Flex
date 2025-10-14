@@ -6,6 +6,48 @@
 // Start - Power List Generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+/* function fClearAllFilterCheckboxes
+   Purpose: Unchecks all 'isactive' checkboxes on a given filter sheet.
+   Assumptions: The sheet has a column tagged 'isactive'.
+   Notes: A reusable helper for user convenience.
+   @param {string} sheetName - The name of the sheet to clear (e.g., 'Filter Powers').
+   @returns {void}
+*/
+function fClearAllFilterCheckboxes(sheetName) {
+  fActivateSheetByName(sheetName);
+  fShowToast(`⏳ Clearing all selections in <${sheetName}>...`, 'Clear Selections');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    fEndToast();
+    fShowMessage('❌ Error', `Could not find the <${sheetName}> sheet.`);
+    return;
+  }
+
+  const { rowTags, colTags } = fGetSheetData('CS', sheetName, ss, true);
+  const headerRow = rowTags.header;
+  const isActiveCol = colTags.isactive;
+
+  if (headerRow === undefined || isActiveCol === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', `The <${sheetName}> sheet is not tagged correctly.`);
+    return;
+  }
+
+  const firstDataRow = headerRow + 2;
+  const lastRow = sheet.getLastRow();
+  const numRows = lastRow - firstDataRow + 1;
+
+  if (numRows > 0) {
+    sheet.getRange(firstDataRow, isActiveCol + 1, numRows, 1).uncheck();
+  }
+
+  fEndToast();
+  // No final message here; the subsequent filter function will provide it.
+} // End function fClearAllFilterCheckboxes
+
 /* function fGetAllPowerTablesList
    Purpose: A helper function to get a definitive, aggregated list of all available power tables from DB and Custom sources.
    Assumptions: None.

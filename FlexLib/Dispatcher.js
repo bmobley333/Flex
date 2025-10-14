@@ -22,6 +22,14 @@ function run(command, sheetToActivate) {
 
     const commandMap = {
       // --- THIS IS THE FIX ---
+      ClearPowerFilters: () => {
+        fClearAllFilterCheckboxes('Filter Powers');
+        fFilterPowers();
+      },
+      ClearMagicItemFilters: () => {
+        fClearAllFilterCheckboxes('Filter Magic Items');
+        fFilterMagicItems();
+      },
       CharacterOnboarding: fCharacterOnboarding,
       InvalidateGameCache: () => fInvalidateSheetCache('CS', 'Game'),
       ShareCustomLists: fShareCustomLists,

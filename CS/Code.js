@@ -166,6 +166,27 @@ function buttonFilterMagicItems() {
   FlexLib.run('FilterMagicItems');
 } // End function buttonFilterMagicItems
 
+/* function buttonClearPowerChoices
+   Purpose: Local trigger for a button to clear all power filter checkboxes.
+   Assumptions: None.
+   Notes: Assign this function name to a button on the <Filter Powers> sheet.
+   @returns {void}
+*/
+function buttonClearPowerChoices() {
+  FlexLib.run('ClearPowerFilters');
+} // End function buttonClearPowerChoices
+
+
+/* function buttonClearMagicItemChoices
+   Purpose: Local trigger for a button to clear all magic item filter checkboxes.
+   Assumptions: None.
+   Notes: Assign this function name to a button on the <Filter Magic Items> sheet.
+   @returns {void}
+*/
+function buttonClearMagicItemChoices() {
+  FlexLib.run('ClearMagicItemFilters');
+} // End function buttonClearMagicItemChoices
+
 /* function onChange
    Purpose: An installable trigger that invalidates the session cache for the <Game> sheet when its structure changes.
    Assumptions: This trigger is manually installed for the spreadsheet.
@@ -265,3 +286,23 @@ function fMenuFilterMagicItems() {
 function fMenuPrepGameForPaper() {
   FlexLib.run('PrepGameForPaper');
 } // End function fMenuPrepGameForPaper
+
+/* function fMenuClearPowerChoices
+   Purpose: Local trigger for the "Clear All Selections" menu item for powers.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuClearPowerChoices() {
+  FlexLib.run('ClearPowerFilters');
+} // End function fMenuClearPowerChoices
+
+/* function fMenuClearMagicItemChoices
+   Purpose: Local trigger for the "Clear All Selections" menu item for magic items.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuClearMagicItemChoices() {
+  FlexLib.run('ClearMagicItemFilters');
+} // End function fMenuClearMagicItemChoices

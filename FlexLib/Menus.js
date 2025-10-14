@@ -50,11 +50,15 @@ function fCreateFlexMenu() {
   const ui = SpreadsheetApp.getUi();
   const filterPowersMenu = ui.createMenu('⚡ Filter Powers')
     .addItem('Load All DB and Cust Powers', 'fMenuSyncPowerChoices')
-    .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers');
+    .addItem('Filter Powers From Selections ⚡', 'fMenuFilterPowers')
+    .addSeparator()
+    .addItem('Clear All Selections', 'fMenuClearPowerChoices');
 
   const filterMagicItemsMenu = ui.createMenu('✨ Filter Magic Items')
     .addItem('Load All DB and Cust Items', 'fMenuSyncMagicItemChoices')
-    .addItem('Filter Items From Selections ✨', 'fMenuFilterMagicItems');
+    .addItem('Filter Items From Selections ✨', 'fMenuFilterMagicItems')
+    .addSeparator()
+    .addItem('Clear All Selections', 'fMenuClearMagicItemChoices');
 
   ui.createMenu('💪 Flex')
     .addSubMenu(filterPowersMenu)
