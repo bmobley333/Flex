@@ -119,52 +119,53 @@ function fValidatePowerRow(powerRow, colTags, validationLists) {
   };
 } // End function fValidatePowerRow
 
-
-/* function fVerifyAndPublish
-   Purpose: The master workflow for validating and publishing custom powers.
-   Assumptions: Run from a Cust sheet. Reads from <Powers>, writes feedback, and copies valid rows to <VerifiedPowers>.
-   Notes: This is the definitive gatekeeper for ensuring custom power data integrity.
-   @returns {void}
+/* function fGetPowerValidationRules
+   Purpose: A helper to read the <PowerValidationLists> sheet and return an object of validation arrays.
+   Assumptions: The 'Cust' sheet with <PowerValidationLists> exists and is correctly tagged.
+   Notes: A helper for the fVerifyAndPublish refactor.
+   @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - The active spreadsheet object.
+   @returns {object|null} An object containing the validation lists, or null if an error occurs.
 */
-function fVerifyAndPublish() {
-  fShowToast('⏳ Verifying abilities...', 'Verify & Publish');
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = ss.getSheetByName('Powers');
-  const destSheet = ss.getSheetByName('VerifiedPowers');
-  const currentUserEmail = Session.getActiveUser().getEmail();
-
-  // 1. Get validation lists first
+function fGetPowerValidationRules(ss) {
   const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'PowerValidationLists', ss);
   const valHeaderRow = valRowTags.header;
   if (valHeaderRow === undefined) {
     fEndToast();
     fShowMessage('❌ Error', 'Could not find the <PowerValidationLists> sheet or its "Header" tag.');
-    return;
+    return null;
   }
-  const validationLists = {
+  return {
     typeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(item => item),
     subTypeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item),
     usageList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.usage]).filter(item => item),
     actionList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item),
   };
+} // End function fGetPowerValidationRules
 
-  // 2. Get data and tags for both source and destination sheets
-  const { arr: powersArr, rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss, true);
-  const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
-  const powersHeaderRow = powersRowTags.header;
-  const firstDataRowIndex = powersHeaderRow + 1;
 
+/* function fProcessAndValidatePowers
+   Purpose: The core validation engine. It loops through user-entered powers and validates them against the rules.
+   Assumptions: None.
+   Notes: A helper for the fVerifyAndPublish refactor.
+   @param {Array<Array<string>>} powersArr - The 2D array of data from the <Powers> sheet.
+   @param {object} powersRowTags - The row tag map for the <Powers> sheet.
+   @param {object} powersColTags - The column tag map for the <Powers> sheet.
+   @param {object} destColTags - The column tag map for the <VerifiedPowers> sheet.
+   @param {object} validationLists - The object of validation arrays from fGetPowerValidationRules.
+   @returns {object} An object containing { validPowersData, feedbackData, passedCount, failedCount }.
+*/
+function fProcessAndValidatePowers(powersArr, powersRowTags, powersColTags, destColTags, validationLists) {
+  fShowToast('⏳ Validating each power...', 'Verify & Publish');
   const feedbackData = [];
   const validPowersData = [];
   let passedCount = 0;
   let failedCount = 0;
+  const firstDataRowIndex = powersRowTags.header + 1;
+  const currentUserEmail = Session.getActiveUser().getEmail();
 
-  // 3. Loop, validate, and prepare feedback/data
-  fShowToast('⏳ Validating each power...', 'Verify & Publish');
   for (let r = firstDataRowIndex; r < powersArr.length; r++) {
     const powerRow = powersArr[r];
-    const isRowBlank = powerRow.every(cell => cell === '');
-    if (isRowBlank) {
+    if (powerRow.every(cell => cell === '')) {
       feedbackData.push(['', '']);
       continue;
     }
@@ -177,15 +178,13 @@ function fVerifyAndPublish() {
 
       const newValidRow = [];
       for (const tag in destColTags) {
-        const destIndex = destColTags[tag];
         const sourceIndex = powersColTags[tag];
         if (sourceIndex !== undefined) {
-          newValidRow[destIndex] = powerRow[sourceIndex];
+          newValidRow[destColTags[tag]] = powerRow[sourceIndex];
         }
       }
 
       newValidRow[destColTags.source] = currentUserEmail;
-      newValidRow[destColTags.verifystatus] = '✅ Passed';
       const tableName = newValidRow[destColTags.tablename];
       const abilityName = newValidRow[destColTags.abilityname];
       const usage = newValidRow[destColTags.usage];
@@ -200,39 +199,73 @@ function fVerifyAndPublish() {
     }
   }
 
-  // 4. Write the feedback to the <Powers> sheet
+  return { validPowersData, feedbackData, passedCount, failedCount };
+} // End function fProcessAndValidatePowers
+
+
+/* function fWriteVerificationResults
+   Purpose: Writes the validation feedback to the <Powers> sheet and publishes the valid data to the <VerifiedPowers> sheet.
+   Assumptions: None.
+   Notes: A helper for the fVerifyAndPublish refactor.
+   @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - The active spreadsheet object.
+   @param {Array<Array<string>>} feedbackData - The 2D array of feedback for the <Powers> sheet.
+   @param {Array<Array<string>>} validPowersData - A sparse 2D array of the valid powers to publish.
+   @returns {void}
+*/
+function fWriteVerificationResults(ss, feedbackData, validPowersData) {
+  // 1. Write feedback to the <Powers> sheet
+  const sourceSheet = ss.getSheetByName('Powers');
+  const { rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss);
+  const firstDataRowIndex = powersRowTags.header + 1;
+
   if (feedbackData.length > 0) {
-    sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2).clearContent();
-    sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2).setValues(feedbackData);
+    const feedbackRange = sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2);
+    feedbackRange.clearContent();
+    feedbackRange.setValues(feedbackData);
   }
 
-  // 5. Clear and publish valid powers to <VerifiedPowers>
+  // 2. Publish valid powers to the <VerifiedPowers> sheet
   fShowToast('⏳ Publishing valid powers...', 'Verify & Publish');
-  const destHeaderRow = fGetSheetData('Cust', 'VerifiedPowers', ss).rowTags.header;
-  const destFirstDataRow = destHeaderRow + 2;
-  const lastRow = destSheet.getLastRow();
-  if (lastRow >= destFirstDataRow) {
-    destSheet.getRange(destFirstDataRow, 1, lastRow - destFirstDataRow + 1, destSheet.getMaxColumns()).clearContent();
-  }
-  if (validPowersData.length > 0) {
-    const destRange = destSheet.getRange(destFirstDataRow, 1, validPowersData.length, destSheet.getMaxColumns());
-    const outputArr = destRange.getValues();
-    validPowersData.forEach((rowIndex, r) => {
-      rowIndex.forEach((cell, c) => {
-        outputArr[r][c] = cell;
-      });
-    });
-    destRange.setValues(outputArr);
-  }
+  const destSheet = ss.getSheetByName('VerifiedPowers');
+  const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
+  fClearAndWriteData(destSheet, validPowersData, destColTags);
+} // End function fWriteVerificationResults
 
-  // 6. Display the final summary report
-  fEndToast();
-  let message = `Verification complete.\n\n✅ ${passedCount} powers passed and were published.`;
-  // --- THIS IS THE FIX ---
-  if (failedCount > 0) {
-    message += `\n❌ ${failedCount} powers failed. Please see the 'FailedReason' column for details.`;
+
+
+/* function fVerifyAndPublish
+   Purpose: The master workflow for validating and publishing custom powers.
+   Assumptions: Run from a Cust sheet. Reads from <Powers>, writes feedback, and copies valid rows to <VerifiedPowers>.
+   Notes: This is the definitive gatekeeper for ensuring custom power data integrity.
+   @returns {void}
+*/
+function fVerifyAndPublish() {
+  fShowToast('⏳ Verifying abilities...', 'Verify & Publish');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  try {
+    const validationLists = fGetPowerValidationRules(ss);
+    if (!validationLists) return; // Exit if rules could not be loaded.
+
+    const { arr: powersArr, rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss, true);
+    const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
+
+    const results = fProcessAndValidatePowers(powersArr, powersRowTags, powersColTags, destColTags, validationLists);
+
+    fWriteVerificationResults(ss, results.feedbackData, results.validPowersData);
+
+    // Display the final summary report
+    fEndToast();
+    let message = `Verification complete.\n\n✅ ${results.passedCount} powers passed and were published.`;
+    if (results.failedCount > 0) {
+      message += `\n❌ ${results.failedCount} powers failed. Please see the 'FailedReason' column for details.`;
+    }
+    fShowMessage('✅ Verification Complete', message);
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in fVerifyAndPublish: ${e.message}\n${e.stack}`);
+    fEndToast();
+    fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
   }
-  fShowMessage('✅ Verification Complete', message);
 } // End function fVerifyAndPublish
 
 
