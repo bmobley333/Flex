@@ -1,4 +1,4 @@
-/* global g, fGetMasterSheetId, SpreadsheetApp, fGetSheetData, fShowToast, fEndToast, fShowMessage */
+/* global g, fGetMasterSheetId, SpreadsheetApp, fGetSheetData, fShowToast, fEndToast, fShowMessage, fActivateSheetByName, fClearAndWriteData */
 /* exported fBuildMagicItems */
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -296,6 +296,84 @@ function fDeleteSelectedMagicItems() {
   fShowMessage('✅ Deletion Complete', `Successfully deleted ${selectedRows.length} item(s).`);
 } // End function fDeleteSelectedMagicItems
 
+/* function fGetMagicItemSourceData
+   Purpose: A helper to fetch, process, and aggregate all magic item data from the master Tables file.
+   Assumptions: The 'Tbls' file ID is valid and the 'Magic Items' source sheet exists.
+   Notes: This is a helper for the fBuildMagicItems refactor.
+   @param {object} destColTags - The column tag map from the destination <Magic Items> sheet.
+   @returns {Array<Array<string>>} A 2D array of the aggregated and processed magic item data.
+*/
+function fGetMagicItemSourceData(destColTags) {
+  const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
+  if (!tablesId) {
+    throw new Error('Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
+  }
+
+  const sourceSS = SpreadsheetApp.openById(tablesId);
+  const sourceSheetName = 'Magic Items';
+  const sourceSheet = sourceSS.getSheetByName(sourceSheetName);
+  if (!sourceSheet) {
+    throw new Error(`Could not find the source sheet named "${sourceSheetName}" in the Tables spreadsheet.`);
+  }
+
+  g.Tbls = {}; // Ensure a fresh cache namespace
+  const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS, true);
+  const sourceHeaderIndex = sourceRowTags.header;
+
+  if (sourceHeaderIndex === undefined) {
+    throw new Error('A "Header" row tag is missing from the source <Magic Items> sheet.');
+  }
+
+  fShowToast(`⏳ Processing <${sourceSheetName}>...`, '✨ Build Magic Items');
+  const allMagicItemsData = [];
+  const emojiMap = { Minor: '🍺', Lesser: '🔮', Greater: '🪬', Artifact: '🌀' };
+
+  for (let r = sourceHeaderIndex + 1; r < sourceArr.length; r++) {
+    const row = sourceArr[r];
+    const itemName = row[sourceColTags.abilityname];
+
+    if (itemName && itemName.toLowerCase() !== 'item') {
+      const category = row[sourceColTags.subtype];
+      const usage = row[sourceColTags.usage];
+      const action = row[sourceColTags.action];
+      const effect = row[sourceColTags.effect];
+      const emoji = emojiMap[category] || '✨';
+      const dropDownValue = `${category}${emoji} - ${itemName} (${usage}, ${action}) ➡ ${effect}`;
+
+      const newRow = [];
+      newRow[destColTags.dropdown] = dropDownValue;
+      newRow[destColTags.type] = row[sourceColTags.type];
+      newRow[destColTags.subtype] = category;
+      newRow[destColTags.tablename] = row[sourceColTags.tablename];
+      newRow[destColTags.source] = row[sourceColTags.source];
+      newRow[destColTags.usage] = usage;
+      newRow[destColTags.action] = action;
+      newRow[destColTags.abilityname] = itemName;
+      newRow[destColTags.effect] = effect;
+
+      allMagicItemsData.push({
+        category: category,
+        itemName: itemName,
+        fullRow: newRow,
+      });
+    }
+  }
+
+  // Sort the aggregated data
+  fShowToast('⏳ Sorting all magic items...', '✨ Build Magic Items');
+  const categoryOrder = ['Minor', 'Lesser', 'Greater', 'Artifact'];
+  allMagicItemsData.sort((a, b) => {
+    const categoryIndexA = categoryOrder.indexOf(a.category);
+    const categoryIndexB = categoryOrder.indexOf(b.category);
+    if (categoryIndexA !== categoryIndexB) {
+      return categoryIndexA - categoryIndexB;
+    }
+    return a.itemName.localeCompare(b.itemName);
+  });
+
+  return allMagicItemsData.map(item => item.fullRow);
+} // End function fGetMagicItemSourceData
+
 
 /* function fBuildMagicItems
    Purpose: The master function to rebuild the <Magic Items> sheet in the DB file from the master Tables file.
@@ -309,118 +387,22 @@ function fBuildMagicItems() {
   fActivateSheetByName(destSheetName);
 
   try {
-    // 1. Get the ID of the master Tables spreadsheet
-    const tablesId = fGetMasterSheetId(g.CURRENT_VERSION, 'Tbls');
-    if (!tablesId) {
-      fEndToast();
-      fShowMessage('❌ Error', 'Could not find the ID for the "Tbls" spreadsheet in the master <Versions> sheet.');
-      return;
-    }
-
-    // 2. Define source and destination details
-    const sourceSS = SpreadsheetApp.openById(tablesId);
-    const sourceSheetName = 'Magic Items';
-    const sourceSheet = sourceSS.getSheetByName(sourceSheetName);
     const destSS = SpreadsheetApp.getActiveSpreadsheet();
     const destSheet = destSS.getSheetByName(destSheetName);
-
-    if (!sourceSheet) {
-      throw new Error(`Could not find the source sheet named "${sourceSheetName}" in the Tables spreadsheet.`);
+    if (!destSheet) {
+      throw new Error(`Could not find the <${destSheetName}> sheet in the current spreadsheet.`);
     }
 
-    // 3. Get fresh data maps for source and destination
-    g.DB = {};
-    g.Tbls = {};
-    const { rowTags: destRowTags, colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true);
-    const { arr: sourceArr, rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Tbls', sourceSheetName, sourceSS, true);
-    const headerRowIndex = destRowTags.header;
-    const sourceHeaderIndex = sourceRowTags.header;
+    g.DB = {}; // Ensure a fresh cache namespace
+    const { colTags: destColTags } = fGetSheetData('DB', destSheetName, destSS, true);
 
-    if (headerRowIndex === undefined || sourceHeaderIndex === undefined) {
-      fEndToast();
-      fShowMessage('❌ Error', `A "Header" row tag is missing from either the source or destination <Magic Items> sheet.`);
-      return;
-    }
+    const allItemsData = fGetMagicItemSourceData(destColTags);
 
-    // 4. Clear old data from the destination sheet
-    fShowToast('⏳ Clearing old magic item data...', '✨ Build Magic Items');
-    const lastRow = destSheet.getLastRow();
-    const firstDataRow = headerRowIndex + 2;
-    if (lastRow >= firstDataRow) {
-      destSheet.getRange(firstDataRow, 2, lastRow - firstDataRow + 1, destSheet.getMaxColumns() - 1).clearContent();
-      if (lastRow > firstDataRow) {
-        destSheet.deleteRows(firstDataRow + 1, lastRow - firstDataRow);
-      }
-    }
-
-    // 5. Process each source row and aggregate the valid data
-    fShowToast(`⏳ Processing <${sourceSheetName}>...`, '✨ Build Magic Items');
-    const allMagicItemsData = [];
-    const emojiMap = { Minor: '🍺', Lesser: '🔮', Greater: '🪬', Artifact: '🌀' };
-
-    for (let r = sourceHeaderIndex + 1; r < sourceArr.length; r++) {
-      const row = sourceArr[r];
-      const itemName = row[sourceColTags.abilityname];
-
-      if (itemName && itemName.toLowerCase() !== 'item') {
-        const category = row[sourceColTags.subtype];
-        const usage = row[sourceColTags.usage];
-        const action = row[sourceColTags.action];
-        const effect = row[sourceColTags.effect];
-        const emoji = emojiMap[category] || '✨';
-        const dropDownValue = `${category}${emoji} - ${itemName} (${usage}, ${action}) ➡ ${effect}`;
-
-        allMagicItemsData.push({
-          category: category,
-          itemName: itemName,
-          fullRow: [
-            dropDownValue,
-            row[sourceColTags.type],
-            category,
-            row[sourceColTags.tablename],
-            row[sourceColTags.source],
-            usage,
-            action,
-            itemName,
-            effect,
-          ],
-        });
-      }
-    }
-
-    // 6. Sort the aggregated data
-    fShowToast('⏳ Sorting all magic items...', '✨ Build Magic Items');
-    // --- THIS IS THE FIX ---
-    const categoryOrder = ['Minor', 'Lesser', 'Greater', 'Artifact'];
-    allMagicItemsData.sort((a, b) => {
-      const categoryIndexA = categoryOrder.indexOf(a.category);
-      const categoryIndexB = categoryOrder.indexOf(b.category);
-
-      if (categoryIndexA !== categoryIndexB) {
-        return categoryIndexA - categoryIndexB;
-      }
-      return a.itemName.localeCompare(b.itemName);
-    });
-
-    const sortedRowData = allMagicItemsData.map(item => item.fullRow);
-
-
-    // 7. Write the new data to the destination sheet
-    const newRowCount = sortedRowData.length;
-    if (newRowCount > 0) {
-      fShowToast(`⏳ Writing ${newRowCount} new magic items...`, '✨ Build Magic Items');
-      if (newRowCount > 1) {
-        destSheet.insertRowsAfter(firstDataRow, newRowCount - 1);
-        const formatSourceRange = destSheet.getRange(firstDataRow, 1, 1, destSheet.getMaxColumns());
-        const formatDestRange = destSheet.getRange(firstDataRow + 1, 1, newRowCount - 1, destSheet.getMaxColumns());
-        formatSourceRange.copyTo(formatDestRange, { formatOnly: true });
-      }
-      destSheet.getRange(firstDataRow, 2, newRowCount, sortedRowData[0].length).setValues(sortedRowData);
-    }
+    fShowToast(`⏳ Writing ${allItemsData.length} new magic items...`, '✨ Build Magic Items');
+    fClearAndWriteData(destSheet, allItemsData, destColTags);
 
     fEndToast();
-    fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${sortedRowData.length} magic items.`);
-
+    fShowMessage('✅ Success', `The <${destSheetName}> sheet has been successfully rebuilt with ${allItemsData.length} magic items.`);
   } catch (e) {
     console.error(`❌ CRITICAL ERROR in fBuildMagicItems: ${e.message}\n${e.stack}`);
     fEndToast();
