@@ -331,7 +331,7 @@ function fDeleteSelectedPowers() {
     successMessage = '✅ Operation complete.'; // Fallback
   }
 
-  fShowMessage('Deletion Complete', successMessage);
+  fShowMessage('✅ Deletion Complete', successMessage);
 } // End function fDeleteSelectedPowers
 
 /* function fDeleteCustomList

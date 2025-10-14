@@ -332,7 +332,7 @@ function fCreateNewCharacterSheet(version) {
 
   fEndToast();
   const successMessage = `✅ Success! Your new character, "${characterName}," has been created.\n\nA link has been added to your <Characters> sheet.`;
-  fShowMessage('Character Created!', successMessage);
+  fShowMessage('✅ Character Created!', successMessage);
 } // End function fCreateNewCharacterSheet
 
 

@@ -56,7 +56,7 @@ function fVerifyActiveSheetTags() {
     }
 
     fEndToast();
-    fShowMessage('Tag Verification', '✅ Success! All column and row tags are unique.');
+    fShowMessage('✅ Tag Verification', '✅ Success! All column and row tags are unique.');
 
   } catch (e) {
     fEndToast();
