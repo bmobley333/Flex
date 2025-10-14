@@ -204,31 +204,33 @@ function fProcessAndValidatePowers(powersArr, powersRowTags, powersColTags, dest
 
 
 /* function fWriteVerificationResults
-   Purpose: Writes the validation feedback to the <Powers> sheet and publishes the valid data to the <VerifiedPowers> sheet.
+   Purpose: Writes validation feedback to the source sheet and publishes valid data to the destination sheet.
    Assumptions: None.
-   Notes: A helper for the fVerifyAndPublish refactor.
+   Notes: A generic helper for all verification workflows.
    @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - The active spreadsheet object.
-   @param {Array<Array<string>>} feedbackData - The 2D array of feedback for the <Powers> sheet.
-   @param {Array<Array<string>>} validPowersData - A sparse 2D array of the valid powers to publish.
+   @param {string} sourceSheetName - The name of the user-facing sheet to write feedback to (e.g., 'Powers').
+   @param {string} destSheetName - The name of the verified sheet to publish data to (e.g., 'VerifiedPowers').
+   @param {Array<Array<string>>} feedbackData - The 2D array of feedback for the source sheet.
+   @param {Array<Array<string>>} validData - A sparse 2D array of the valid data to publish.
    @returns {void}
 */
-function fWriteVerificationResults(ss, feedbackData, validPowersData) {
-  // 1. Write feedback to the <Powers> sheet
-  const sourceSheet = ss.getSheetByName('Powers');
-  const { rowTags: powersRowTags, colTags: powersColTags } = fGetSheetData('Cust', 'Powers', ss);
-  const firstDataRowIndex = powersRowTags.header + 1;
+function fWriteVerificationResults(ss, sourceSheetName, destSheetName, feedbackData, validData) {
+  // 1. Write feedback to the source sheet
+  const sourceSheet = ss.getSheetByName(sourceSheetName);
+  const { rowTags: sourceRowTags, colTags: sourceColTags } = fGetSheetData('Cust', sourceSheetName, ss);
+  const firstDataRowIndex = sourceRowTags.header + 1;
 
   if (feedbackData.length > 0) {
-    const feedbackRange = sourceSheet.getRange(firstDataRowIndex + 1, powersColTags.verifystatus + 1, feedbackData.length, 2);
+    const feedbackRange = sourceSheet.getRange(firstDataRowIndex + 1, sourceColTags.verifystatus + 1, feedbackData.length, 2);
     feedbackRange.clearContent();
     feedbackRange.setValues(feedbackData);
   }
 
-  // 2. Publish valid powers to the <VerifiedPowers> sheet
-  fShowToast('⏳ Publishing valid powers...', 'Verify & Publish');
-  const destSheet = ss.getSheetByName('VerifiedPowers');
-  const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedPowers', ss);
-  fClearAndWriteData(destSheet, validPowersData, destColTags);
+  // 2. Publish valid data to the destination sheet
+  fShowToast(`⏳ Publishing valid entries to <${destSheetName}>...`, 'Verify & Publish');
+  const destSheet = ss.getSheetByName(destSheetName);
+  const { colTags: destColTags } = fGetSheetData('Cust', destSheetName, ss);
+  fClearAndWriteData(destSheet, validData, destColTags);
 } // End function fWriteVerificationResults
 
 
@@ -252,7 +254,7 @@ function fVerifyAndPublish() {
 
     const results = fProcessAndValidatePowers(powersArr, powersRowTags, powersColTags, destColTags, validationLists);
 
-    fWriteVerificationResults(ss, results.feedbackData, results.validPowersData);
+    fWriteVerificationResults(ss, 'Powers', 'VerifiedPowers', results.feedbackData, results.validPowersData);
 
     // Display the final summary report
     fEndToast();

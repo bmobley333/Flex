@@ -64,25 +64,41 @@ function fApplyMagicItemValidations() {
 function fValidateMagicItemRow(itemRow, colTags, validationLists) {
   const errors = [];
 
-  // --- THIS IS THE FIX ---
-  // Rule 1: Category must exist and be valid (uses 'subtype' tag)
-  const category = itemRow[colTags.subtype];
-  if (!category || !validationLists.subTypeList.includes(category)) {
+  // Rule 1: Type must exist and be valid
+  const type = itemRow[colTags.type];
+  if (!type || !validationLists.typeList.includes(type)) {
+    errors.push(`Type must be one of: ${validationLists.typeList.join(', ')}.`);
+  }
+
+  // Rule 2: SubType (Category) must exist and be valid
+  const subType = itemRow[colTags.subtype];
+  if (!subType || !validationLists.subTypeList.includes(subType)) {
     errors.push(`Category must be one of: ${validationLists.subTypeList.join(', ')}.`);
   }
 
-  // Rule 2: Item Name must exist (uses 'abilityname' tag)
-  if (!itemRow[colTags.abilityname]) {
-    errors.push('Magic Item\'s Name cannot be empty.');
+  // Rule 3: TableName must exist
+  if (!itemRow[colTags.tablename]) {
+    errors.push('TableName cannot be empty.');
   }
 
-  // Rule 3: Usage must exist and be valid
+  // Rule 4: Usage must exist and be valid
   const usage = itemRow[colTags.usage];
   if (!usage || !validationLists.usageList.includes(usage)) {
     errors.push(`Usage must be one of: ${validationLists.usageList.join(', ')}.`);
   }
 
-  // Rule 4: Effect must exist
+  // Rule 5: Action must exist and be valid
+  const action = itemRow[colTags.action];
+  if (!action || !validationLists.actionList.includes(action)) {
+    errors.push(`Action must be one of: ${validationLists.actionList.join(', ')}.`);
+  }
+
+  // Rule 6: AbilityName (Item Name) must exist
+  if (!itemRow[colTags.abilityname]) {
+    errors.push('Magic Item\'s Name cannot be empty.');
+  }
+
+  // Rule 7: Effect must exist
   if (!itemRow[colTags.effect]) {
     errors.push('Effect cannot be empty.');
   }
@@ -92,6 +108,93 @@ function fValidateMagicItemRow(itemRow, colTags, validationLists) {
     errors: errors,
   };
 } // End function fValidateMagicItemRow
+
+/* function fGetMagicItemValidationRules
+   Purpose: A helper to read the <MagicItemValidationLists> sheet and return an object of validation arrays.
+   Assumptions: The 'Cust' sheet with <MagicItemValidationLists> exists and is correctly tagged.
+   Notes: A helper for the fVerifyAndPublishMagicItems refactor.
+   @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - The active spreadsheet object.
+   @returns {object|null} An object containing the validation lists, or null if an error occurs.
+*/
+function fGetMagicItemValidationRules(ss) {
+  const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'MagicItemValidationLists', ss);
+  const valHeaderRow = valRowTags.header;
+  if (valHeaderRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', 'Could not find the <MagicItemValidationLists> sheet or its "Header" tag.');
+    return null;
+  }
+  return {
+    typeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(item => item),
+    subTypeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item),
+    usageList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.usage]).filter(item => item),
+    actionList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item),
+  };
+} // End function fGetMagicItemValidationRules
+
+
+/* function fProcessAndValidateMagicItems
+   Purpose: The core validation engine for magic items. It loops through user-entered items and validates them.
+   Assumptions: None.
+   Notes: A helper for the fVerifyAndPublishMagicItems refactor.
+   @param {Array<Array<string>>} itemsArr - The 2D array of data from the <Magic Items> sheet.
+   @param {object} itemsRowTags - The row tag map for the <Magic Items> sheet.
+   @param {object} itemsColTags - The column tag map for the <Magic Items> sheet.
+   @param {object} destColTags - The column tag map for the <VerifiedMagicItems> sheet.
+   @param {object} validationLists - The object of validation arrays from fGetMagicItemValidationRules.
+   @returns {object} An object containing { validItemsData, feedbackData, passedCount, failedCount }.
+*/
+function fProcessAndValidateMagicItems(itemsArr, itemsRowTags, itemsColTags, destColTags, validationLists) {
+  fShowToast('⏳ Validating each item...', '✨ Verify & Publish');
+  const feedbackData = [];
+  const validItemsData = [];
+  let passedCount = 0;
+  let failedCount = 0;
+  const firstDataRowIndex = itemsRowTags.header + 1;
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  const emojiMap = { Minor: '🍺', Lesser: '🔮', Greater: '🪬', Artifact: '🌀' };
+
+  for (let r = firstDataRowIndex; r < itemsArr.length; r++) {
+    const itemRow = itemsArr[r];
+    if (itemRow.every(cell => cell === '')) {
+      feedbackData.push(['', '']);
+      continue;
+    }
+
+    const validationResult = fValidateMagicItemRow(itemRow, itemsColTags, validationLists);
+
+    if (validationResult.isValid) {
+      passedCount++;
+      feedbackData.push(['✅ Passed', '']);
+
+      const category = itemRow[itemsColTags.subtype];
+      const itemName = itemRow[itemsColTags.abilityname];
+      const usage = itemRow[itemsColTags.usage];
+      const action = itemRow[itemsColTags.action];
+      const effect = itemRow[itemsColTags.effect];
+      const emoji = emojiMap[category] || '✨';
+      const dropDownValue = `${category}${emoji} - ${itemName} (${usage}, ${action}) ➡ ${effect}`;
+
+      const newValidRow = [];
+      newValidRow[destColTags.dropdown] = dropDownValue;
+      newValidRow[destColTags.type] = itemRow[itemsColTags.type];
+      newValidRow[destColTags.subtype] = category;
+      newValidRow[destColTags.tablename] = itemRow[itemsColTags.tablename];
+      newValidRow[destColTags.source] = currentUserEmail;
+      newValidRow[destColTags.usage] = usage;
+      newValidRow[destColTags.action] = action;
+      newValidRow[destColTags.abilityname] = itemName;
+      newValidRow[destColTags.effect] = effect;
+
+      validItemsData.push(newValidRow);
+    } else {
+      failedCount++;
+      feedbackData.push(['❌ Failed', validationResult.errors.join(' ')]);
+    }
+  }
+
+  return { validItemsData, feedbackData, passedCount, failedCount };
+} // End function fProcessAndValidateMagicItems
 
 
 /* function fVerifyAndPublishMagicItems
@@ -103,114 +206,25 @@ function fValidateMagicItemRow(itemRow, colTags, validationLists) {
 function fVerifyAndPublishMagicItems() {
   fShowToast('⏳ Verifying magic items...', '✨ Verify & Publish');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = ss.getSheetByName('Magic Items');
-  const destSheet = ss.getSheetByName('VerifiedMagicItems');
-  const currentUserEmail = Session.getActiveUser().getEmail();
 
   try {
-    // 1. Get validation lists
-    const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'MagicItemValidationLists', ss);
-    const valHeaderRow = valRowTags.header;
-    if (valHeaderRow === undefined) {
-      fEndToast();
-      fShowMessage('❌ Error', 'Could not find the <MagicItemValidationLists> sheet or its "Header" tag.');
-      return;
-    }
-    const validationLists = {
-      subTypeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item),
-      usageList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.usage]).filter(item => item),
-      actionList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.action]).filter(item => item),
-    };
+    const validationLists = fGetMagicItemValidationRules(ss);
+    if (!validationLists) return;
 
-    // 2. Get data and tags for both sheets
     const { arr: itemsArr, rowTags: itemsRowTags, colTags: itemsColTags } = fGetSheetData('Cust', 'Magic Items', ss, true);
-    const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedMagicItems', ss, true);
-    const itemsHeaderRow = itemsRowTags.header;
-    const firstDataRowIndex = itemsHeaderRow + 1;
+    const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedMagicItems', ss);
 
-    const feedbackData = [];
-    const validItemsData = [];
-    let passedCount = 0;
-    let failedCount = 0;
-    const emojiMap = { Minor: '🍺', Lesser: '🔮', Greater: '🪬', Artifact: '🌀' };
+    const results = fProcessAndValidateMagicItems(itemsArr, itemsRowTags, itemsColTags, destColTags, validationLists);
 
-    // 3. Loop, validate, and prepare data
-    for (let r = firstDataRowIndex; r < itemsArr.length; r++) {
-      const itemRow = itemsArr[r];
-      if (itemRow.every(cell => cell === '')) {
-        feedbackData.push(['', '']);
-        continue;
-      }
+    fWriteVerificationResults(ss, 'Magic Items', 'VerifiedMagicItems', results.feedbackData, results.validItemsData);
 
-      const validationResult = fValidateMagicItemRow(itemRow, itemsColTags, validationLists);
-
-      if (validationResult.isValid) {
-        passedCount++;
-        feedbackData.push(['✅ Passed', '']);
-
-        const category = itemRow[itemsColTags.subtype];
-        const itemName = itemRow[itemsColTags.abilityname];
-        const usage = itemRow[itemsColTags.usage];
-        const action = itemRow[itemsColTags.action];
-        const effect = itemRow[itemsColTags.effect];
-        const type = itemRow[itemsColTags.type];
-        const tableName = itemRow[itemsColTags.tablename];
-        const emoji = emojiMap[category] || '✨';
-        const dropDownValue = `${category}${emoji} - ${itemName} (${usage}, ${action}) ➡ ${effect}`;
-
-        // --- THIS IS THE FIX ---
-        // Build the final row array using the correct DESTINATION tags
-        const newValidRow = [];
-        newValidRow[destColTags.dropdown] = dropDownValue;
-        newValidRow[destColTags.type] = type;
-        newValidRow[destColTags.subtype] = category; // Correct destination tag
-        newValidRow[destColTags.tablename] = tableName;
-        newValidRow[destColTags.source] = currentUserEmail;
-        newValidRow[destColTags.usage] = usage;
-        newValidRow[destColTags.action] = action;
-        newValidRow[destColTags.abilityname] = itemName; // Correct destination tag
-        newValidRow[destColTags.effect] = effect;
-
-        validItemsData.push(newValidRow);
-      } else {
-        failedCount++;
-        feedbackData.push(['❌ Failed', validationResult.errors.join(' ')]);
-      }
-    }
-
-    // 4. Write feedback
-    if (feedbackData.length > 0) {
-      sourceSheet.getRange(firstDataRowIndex + 1, itemsColTags.verifystatus + 1, feedbackData.length, 2).setValues(feedbackData);
-    }
-
-    // 5. Clear and publish valid items
-    const destHeaderRow = fGetSheetData('Cust', 'VerifiedMagicItems', ss).rowTags.header;
-    const destFirstDataRow = destHeaderRow + 2;
-    const lastRow = destSheet.getLastRow();
-    if (lastRow >= destFirstDataRow) {
-      destSheet.getRange(destFirstDataRow, 1, lastRow - destFirstDataRow + 1, destSheet.getMaxColumns()).clearContent();
-    }
-
-    if (validItemsData.length > 0) {
-      const outputArr = validItemsData.map(sparseRow => {
-        const fullRow = [];
-        for (const tag in destColTags) {
-          const colIndex = destColTags[tag];
-          fullRow[colIndex] = sparseRow[colIndex] || '';
-        }
-        return fullRow;
-      });
-      destSheet.getRange(destFirstDataRow, 1, outputArr.length, outputArr[0].length).setValues(outputArr);
-    }
-
-    // 6. Display final report
+    // Display final report
     fEndToast();
-    let message = `Verification complete.\n\n✅ ${passedCount} magic items passed and were published.`;
-    if (failedCount > 0) {
-      message += `\n❌ ${failedCount} magic items failed. Please see the 'FailedReason' column for details.`;
+    let message = `Verification complete.\n\n✅ ${results.passedCount} magic items passed and were published.`;
+    if (results.failedCount > 0) {
+      message += `\n❌ ${results.failedCount} magic items failed. Please see the 'FailedReason' column for details.`;
     }
     fShowMessage('✅ Verification Complete', message);
-
   } catch (e) {
     console.error(`❌ CRITICAL ERROR in fVerifyAndPublishMagicItems: ${e.message}\n${e.stack}`);
     fEndToast();
