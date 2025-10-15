@@ -13,9 +13,10 @@ function onOpen() {
   const isInitialized = scriptProperties.getProperty(SCRIPT_INITIALIZED_KEY);
 
   if (isInitialized) {
-    // Apply the data validation dropdowns to both sheets
+    // Apply the data validation dropdowns to all sheets
     FlexLib.fApplyPowerValidations();
-    FlexLib.fApplyMagicItemValidations(); // <-- ADDED
+    FlexLib.fApplyMagicItemValidations();
+    FlexLib.fApplySkillSetValidations(); // <-- ADDED
 
     // Create the standard player menu.
     FlexLib.fCreateCustMenu();
@@ -134,4 +135,24 @@ function fMenuDeleteSelectedMagicItems() {
   FlexLib.run('DeleteSelectedMagicItems', 'Magic Items');
 } // End function fMenuDeleteSelectedMagicItems
 
+
+/* function fMenuVerifyAndPublishSkillSets
+   Purpose: Local trigger for the "Verify & Publish Skill Sets" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuVerifyAndPublishSkillSets() {
+  FlexLib.run('VerifyAndPublishSkillSets', 'SkillSets');
+} // End function fMenuVerifyAndPublishSkillSets
+
+/* function fMenuDeleteSelectedSkillSets
+   Purpose: Local trigger for the "Delete Selected Skill Sets" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuDeleteSelectedSkillSets() {
+  FlexLib.run('DeleteSelectedSkillSets', 'SkillSets');
+} // End function fMenuDeleteSelectedSkillSets
 

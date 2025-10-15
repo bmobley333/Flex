@@ -6,6 +6,195 @@
 // Start - Skill Verification and List Generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* function fApplySkillSetValidations
+   Purpose: Reads validation lists from <SkillSetValidationLists> and applies them as dropdowns to the <SkillSets> sheet.
+   Assumptions: Running from a Cust sheet.
+   Notes: Creates data validation dropdowns to guide user input.
+   @returns {void}
+*/
+function fApplySkillSetValidations() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const skillSetsSheet = ss.getSheetByName('SkillSets');
+  if (!skillSetsSheet) return;
+
+  const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'SkillSetValidationLists', ss);
+  const valHeaderRow = valRowTags.header;
+  if (valHeaderRow === undefined) return;
+
+  const typeList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(item => item);
+  const subTypeList = valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(item => item);
+
+  const { rowTags: setsRowTags, colTags: setsColTags } = fGetSheetData('Cust', 'SkillSets', ss);
+  const setsHeaderRow = setsRowTags.header;
+  const firstDataRow = setsHeaderRow + 2;
+  const lastRow = skillSetsSheet.getMaxRows();
+  const numRows = lastRow - firstDataRow + 1;
+
+  if (setsHeaderRow === undefined || numRows <= 0) return;
+
+  const typeRule = SpreadsheetApp.newDataValidation().requireValueInList(typeList, true).setAllowInvalid(false).build();
+  const subTypeRule = SpreadsheetApp.newDataValidation().requireValueInList(subTypeList, true).setAllowInvalid(false).build();
+
+  skillSetsSheet.getRange(firstDataRow, setsColTags.type + 1, numRows).setDataValidation(typeRule);
+  skillSetsSheet.getRange(firstDataRow, setsColTags.subtype + 1, numRows).setDataValidation(subTypeRule);
+} // End function fApplySkillSetValidations
+
+/* function fVerifyAndPublishSkillSets
+   Purpose: The master workflow for validating and publishing custom skill sets.
+   Assumptions: Run from a Cust sheet.
+   Notes: This is the gatekeeper for custom skill set data integrity.
+   @returns {void}
+*/
+function fVerifyAndPublishSkillSets() {
+  fShowToast('⏳ Verifying skill sets...', '🎓 Verify & Publish');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const validEmojis = ['💪', '🏃', '👁️', '✨'];
+
+  try {
+    const { arr: valArr, rowTags: valRowTags, colTags: valColTags } = fGetSheetData('Cust', 'SkillSetValidationLists', ss);
+    const valHeaderRow = valRowTags.header;
+    if (valHeaderRow === undefined) throw new Error('Could not find <SkillSetValidationLists> or its "Header" tag.');
+
+    const validationLists = {
+      typeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.type]).filter(Boolean),
+      subTypeList: valArr.slice(valHeaderRow + 1).map(row => row[valColTags.subtype]).filter(Boolean),
+    };
+
+    const { arr: setsArr, rowTags: setsRowTags, colTags: setsColTags } = fGetSheetData('Cust', 'SkillSets', ss, true);
+    const { colTags: destColTags } = fGetSheetData('Cust', 'VerifiedSkillSets', ss);
+    const firstDataRowIndex = setsRowTags.header + 1;
+
+    const feedbackData = [];
+    const validData = [];
+    let passedCount = 0;
+    let failedCount = 0;
+    const currentUserEmail = Session.getActiveUser().getEmail();
+
+    for (let r = firstDataRowIndex; r < setsArr.length; r++) {
+      const row = setsArr[r];
+      if (row.every(cell => cell === '')) {
+        feedbackData.push(['', '']);
+        continue;
+      }
+
+      const errors = [];
+      const type = row[setsColTags.type];
+      if (!type || !validationLists.typeList.includes(type)) errors.push(`Type must be one of: ${validationLists.typeList.join(', ')}.`);
+
+      const subType = row[setsColTags.subtype];
+      if (!subType || !validationLists.subTypeList.includes(subType)) errors.push(`SubType must be one of: ${validationLists.subTypeList.join(', ')}.`);
+
+      if (!row[setsColTags.tablename]) errors.push('TableName cannot be empty.');
+      if (!row[setsColTags.skillset]) errors.push('SkillSet name cannot be empty.');
+
+      const skillListRaw = row[setsColTags.skilllist] || '';
+      const skills = skillListRaw.replace(/,,/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+
+      if (skills.length < 2) errors.push('SkillList must contain at least two comma-separated skills.');
+      skills.forEach(skill => {
+        if (!validEmojis.some(emoji => skill.endsWith(emoji))) {
+          errors.push(`Skill "${skill}" must end with one of: ${validEmojis.join(' ')}.`);
+        }
+      });
+
+      if (errors.length === 0) {
+        passedCount++;
+        feedbackData.push(['✅ Passed', '']);
+        const skillList = skills.join(', ');
+        const dropDownValue = `${row[setsColTags.tablename]} - ${row[setsColTags.skillset]} ➡ ${skillList}`;
+
+        const newValidRow = [];
+        newValidRow[destColTags.dropdown] = dropDownValue;
+        newValidRow[destColTags.type] = type;
+        newValidRow[destColTags.subtype] = subType;
+        newValidRow[destColTags.tablename] = row[setsColTags.tablename];
+        newValidRow[destColTags.source] = currentUserEmail;
+        newValidRow[destColTags.skillset] = row[setsColTags.skillset];
+        newValidRow[destColTags.skilllist] = skillList;
+        validData.push(newValidRow);
+      } else {
+        failedCount++;
+        feedbackData.push(['❌ Failed', errors.join(' ')]);
+      }
+    }
+
+    fWriteVerificationResults(ss, 'SkillSets', 'VerifiedSkillSets', feedbackData, validData);
+
+    fEndToast();
+    let message = `Verification complete.\n\n✅ ${passedCount} skill sets passed.`;
+    if (failedCount > 0) message += `\n❌ ${failedCount} skill sets failed. See 'FailedReason' column for details.`;
+    fShowMessage('✅ Verification Complete', message);
+
+  } catch (e) {
+    console.error(`❌ CRITICAL ERROR in fVerifyAndPublishSkillSets: ${e.message}\n${e.stack}`);
+    fEndToast();
+    fShowMessage('❌ Error', `A critical error occurred. Please check the execution logs. Error: ${e.message}`);
+  }
+} // End function fVerifyAndPublishSkillSets
+
+/* function fDeleteSelectedSkillSets
+   Purpose: The master workflow for deleting one or more skill sets from the <SkillSets> sheet.
+   Assumptions: Run from a Cust sheet menu.
+   Notes: A near-exact copy of fDeleteSelectedPowers.
+   @returns {void}
+*/
+function fDeleteSelectedSkillSets() {
+  fShowToast('⏳ Initializing delete...', '🎓 Delete Selected Skill Sets');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = 'SkillSets';
+  const destSheet = ss.getSheetByName(sheetName);
+
+  const { arr, rowTags, colTags } = fGetSheetData('Cust', sheetName, ss, true);
+  const headerRow = rowTags.header;
+
+  if (headerRow === undefined) {
+    fEndToast();
+    fShowMessage('❌ Error', `The <${sheetName}> sheet is missing a "Header" row tag.`);
+    return;
+  }
+
+  const selectedRows = [];
+  for (let r = headerRow + 1; r < arr.length; r++) {
+    if (arr[r] && arr[r][colTags.checkbox] === true) {
+      selectedRows.push({ row: r + 1, name: arr[r][colTags.skillset] || '' });
+    }
+  }
+
+  if (selectedRows.length === 0) {
+    fEndToast();
+    fShowMessage('ℹ️ No Selection', 'Please check the box next to the skill set(s) you wish to delete.');
+    return;
+  }
+
+  fShowToast('Waiting for your confirmation...', '🎓 Delete Selected Skill Sets');
+  const namedItems = selectedRows.filter(p => p.name);
+  let promptMessage = '⚠️ Are you sure you wish to permanently DELETE the following?\n';
+  let confirmKeyword = 'delete';
+
+  if (namedItems.length > 0) promptMessage += `\n${namedItems.map(p => `- ${p.name}`).join('\n')}\n`;
+  promptMessage += '\nThis action cannot be undone.';
+
+  if (selectedRows.length > 1) {
+    promptMessage += '\n\nTo confirm, please type DELETE ALL below.';
+    confirmKeyword = 'delete all';
+  } else {
+    promptMessage += '\n\nTo confirm, please type DELETE below.';
+  }
+
+  const confirmationText = fPromptWithInput('Confirm Deletion', promptMessage);
+  if (confirmationText === null || confirmationText.toLowerCase().trim() !== confirmKeyword) {
+    fEndToast();
+    fShowMessage('ℹ️ Canceled', 'Deletion has been canceled.');
+    return;
+  }
+
+  fShowToast('🗑️ Deleting rows...', '🎓 Delete Selected Skill Sets');
+  selectedRows.sort((a, b) => b.row - a.row).forEach(item => fDeleteTableRow(destSheet, item.row));
+
+  fEndToast();
+  fShowMessage('✅ Deletion Complete', `Successfully deleted ${selectedRows.length} skill set(s).`);
+} // End function fDeleteSelectedSkillSets
+
 /* function fGetAllSkillSetTablesList
    Purpose: A helper function to get a definitive, aggregated list of all available skill set tables from the DB.
    Assumptions: None.
@@ -14,8 +203,9 @@
 */
 function fGetAllSkillSetTablesList() {
   const dbSkillSetTables = [];
+  const customSkillSetTables = [];
 
-  // 1. Get standard tables from the PLAYER'S LOCAL DB copy.
+  // 1a. Get standard tables from the PLAYER'S LOCAL DB copy.
   const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
   if (dbFile) {
     const sourceSS = SpreadsheetApp.open(dbFile);
@@ -28,8 +218,38 @@ function fGetAllSkillSetTablesList() {
     }
   }
 
+  // 1b. Get custom tables from all registered sources in the Codex.
+  const codexSS = fGetCodexSpreadsheet();
+  const { arr: sourcesArr, rowTags: sourcesRowTags, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
+  const sourcesHeader = sourcesRowTags.header;
+  if (sourcesHeader !== undefined) {
+    for (let r = sourcesHeader + 1; r < sourcesArr.length; r++) {
+      const sourceRow = sourcesArr[r];
+      if (sourceRow && sourceRow[sourcesColTags.sheetid]) {
+        const sourceId = sourceRow[sourcesColTags.sheetid];
+        const sourceName = sourceRow[sourcesColTags.custabilitiesname];
+        try {
+          const customSS = SpreadsheetApp.openById(sourceId);
+          if (customSS.getSheetByName('VerifiedSkillSets')) {
+            const { arr, rowTags, colTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedSkillSets', customSS);
+            const headerRow = rowTags.header;
+            if (headerRow !== undefined) {
+              const tableNameCol = colTags.tablename;
+              const customTableNames = [...new Set(arr.slice(headerRow + 1).map(row => row[tableNameCol]).filter(name => name))];
+              customTableNames.forEach(name => customSkillSetTables.push({ tableName: `Cust - ${name}`, source: sourceName }));
+            }
+          }
+        } catch (e) {
+          console.error(`Could not access custom source "${sourceName}" with ID ${sourceId}. Error: ${e}`);
+        }
+      }
+    }
+  }
+
+
   dbSkillSetTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
-  return { allSkillSetTables: dbSkillSetTables };
+  customSkillSetTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
+  return { allSkillSetTables: [...dbSkillSetTables, ...customSkillSetTables] };
 } // End function fGetAllSkillSetTablesList
 
 
@@ -199,6 +419,7 @@ function fFetchAllSkillSetData(selectedTables) {
   fShowToast('Fetching all selected skill sets...', 'Filter Skill Sets');
   let allSkillSetsData = [];
   let dbHeader = [];
+  const codexSS = fGetCodexSpreadsheet();
 
   const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
   if (!dbFile) {
@@ -216,6 +437,47 @@ function fFetchAllSkillSetData(selectedTables) {
       .slice(dbRowTags.header + 1)
       .filter(row => selectedDbTables.includes(row[dbColTags.tablename]));
     allSkillSetsData = allSkillSetsData.concat(dbSkillSets);
+  }
+
+  // Fetch from Custom Sources
+  const selectedCustomTables = selectedTables.filter(t => t.source !== 'DB');
+  if (selectedCustomTables.length > 0) {
+    const { arr: sourcesArr, colTags: sourcesColTags } = fGetSheetData('Codex', 'Custom Abilities', codexSS, true);
+    for (const customTable of selectedCustomTables) {
+      const sourceInfo = sourcesArr.find(row => row[sourcesColTags.custabilitiesname] === customTable.source);
+      if (sourceInfo) {
+        const sourceId = sourceInfo[sourcesColTags.sheetid];
+        fShowToast(`Fetching from "${customTable.source}"...`, 'Filter Skill Sets');
+        try {
+          const customSS = SpreadsheetApp.openById(sourceId);
+          const { arr: customSheetSets, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedSkillSets', customSS);
+          if (dbHeader.length === 0) dbHeader = customSheetSets[custRowTags.header];
+
+          const cleanTableName = customTable.tableName.replace('Cust - ', '');
+          const filteredCustomSets = customSheetSets
+            .slice(custRowTags.header + 1)
+            .filter(row => row[custColTags.tablename] === cleanTableName);
+
+          const mappedCustomSets = filteredCustomSets.map(row => {
+            const newRow = [];
+            newRow[dbColTags.dropdown] = row[custColTags.dropdown];
+            newRow[dbColTags.type] = row[custColTags.type];
+            newRow[dbColTags.subtype] = row[custColTags.subtype];
+            newRow[dbColTags.tablename] = row[custColTags.tablename];
+            newRow[dbColTags.source] = row[custColTags.source];
+            newRow[dbColTags.skillset] = row[custColTags.skillset];
+            newRow[dbColTags.skilllist] = row[custColTags.skilllist];
+            newRow[dbColTags.name] = row[custColTags.skillset];
+            newRow[dbColTags.effect] = row[custColTags.skilllist];
+            return newRow;
+          });
+          allSkillSetsData = allSkillSetsData.concat(mappedCustomSets);
+        } catch (e) {
+          console.error(`Could not access custom source "${customTable.source}". Error: ${e}`);
+          fShowMessage('⚠️ Warning', `Could not access the custom source "${customTable.source}". Skipping.`);
+        }
+      }
+    }
   }
 
   return { allSkillSetsData, dbHeader };

@@ -43,6 +43,8 @@ function run(command, sheetToActivate) {
       VerifyAndPublish: fVerifyAndPublish,
       VerifyAndPublishMagicItems: fVerifyAndPublishMagicItems,
       DeleteSelectedMagicItems: fDeleteSelectedMagicItems,
+      VerifyAndPublishSkillSets: fVerifyAndPublishSkillSets,
+      DeleteSelectedSkillSets: fDeleteSelectedSkillSets,
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: () => fUpdatePowerTablesList(false),
       SyncMagicItemChoices: () => fUpdateMagicItemChoices(false),

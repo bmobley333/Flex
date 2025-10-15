@@ -61,32 +61,48 @@ function fActivateMenus() {
    Assumptions: Called by the onEdit trigger.
    Notes: This is the master controller for updating the character's skill lists.
    @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object from onEdit.
-   @param {Map<string, object>} skillSetMap - The map of all available skill sets.
    @param {object} gameColTags - The column tags for the <Game> sheet.
    @returns {void}
 */
-function fProcessSkillSetChange(e, skillSetMap, gameColTags) {
+function fProcessSkillSetChange(e, gameColTags) {
   const sheet = e.range.getSheet();
   const oldValue = e.oldValue;
   const newValue = e.value;
+  const editedRow = e.range.getRow();
 
   // Case 1: A skill set was removed.
-  if (oldValue && skillSetMap.has(oldValue)) {
+  // The oldValue exists, but the newValue (e.value) is blank.
+  if (oldValue && !newValue) {
     FlexLib.fShowToast('⏳ Removing old skill set...', 'Skill Sets');
-    const skillsToRemove = fGetSkillsFromString(skillSetMap.get(oldValue).effect);
-    fUpdateCharacterSkills(sheet, skillsToRemove, gameColTags, 'REMOVE');
+    // --- THIS IS THE FIX ---
+    // Read the skill list directly from the adjacent SkillSetEffect cell for resilience.
+    const effectCol = gameColTags.skillseteffect;
+    if (effectCol !== undefined) {
+      const effectString = sheet.getRange(editedRow, effectCol + 1).getValue();
+      const skillsToRemove = fGetSkillsFromString(effectString);
+      fUpdateCharacterSkills(sheet, skillsToRemove, gameColTags, 'REMOVE');
+    }
+    // --- END FIX ---
   }
 
   // Case 2: A new skill set was added.
-  if (newValue && skillSetMap.has(newValue)) {
+  // The newValue (e.value) exists.
+  if (newValue) {
     FlexLib.fShowToast('⏳ Adding new skill set...', 'Skill Sets');
-    const skillsToAdd = fGetSkillsFromString(skillSetMap.get(newValue).effect);
-    fUpdateCharacterSkills(sheet, skillsToAdd, gameColTags, 'ADD');
+    const { arr: skillSetArr, colTags: skillSetColTags } = FlexLib.fGetSheetData('CS', 'SkillSetDataCache', e.source);
+    const skillSetMap = new Map();
+    skillSetArr.slice(1).forEach(row => {
+      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { effect: row[skillSetColTags.effect] });
+    });
+
+    if (skillSetMap.has(newValue)) {
+      const skillsToAdd = fGetSkillsFromString(skillSetMap.get(newValue).effect);
+      fUpdateCharacterSkills(sheet, skillsToAdd, gameColTags, 'ADD');
+    }
   }
 
-  // --- THIS IS THE FIX ---
-  // If either an add or remove operation happened, show the completion toast.
-  if ((oldValue && skillSetMap.has(oldValue)) || (newValue && skillSetMap.has(newValue))) {
+  // Show the completion toast if an operation happened.
+  if (oldValue || newValue) {
     FlexLib.fEndToast();
   }
 } // End function fProcessSkillSetChange
@@ -272,8 +288,8 @@ function onEdit(e) {
         targetTags = { usage: 'powerusage2', action: 'poweraction2', name: 'powername2', effect: 'powereffect2', m_usage: 'magicitemusage2', m_action: 'magicitemaction2', m_name: 'magicitemname2', m_effect: 'magicitemeffect2' };
         break;
       case 'skillsetdropdown':
-        targetTags = { name: 'skillsetname' };
-        fProcessSkillSetChange(e, skillSetMap, gameColTags); // --- THIS IS THE FIX ---
+        targetTags = { name: 'skillsetname', effect: 'skillseteffect' };
+        fProcessSkillSetChange(e, gameColTags); // Pass gameColTags, map is no longer needed for deletion
         break;
       // Add more cases here for DropDown3, DropDown4, etc. if they ever exist
       default:
@@ -287,9 +303,12 @@ function onEdit(e) {
         const col = gameColTags[tag];
         if (col !== undefined) sheet.getRange(e.range.getRow(), col + 1).clearContent();
       });
-      // Also clear the skill set name cell
+      // Also clear the skill set name and effect cells
       if (gameColTags[targetTags.name] !== undefined) {
         sheet.getRange(e.range.getRow(), gameColTags[targetTags.name] + 1).clearContent();
+      }
+      if (gameColTags[targetTags.effect] !== undefined) {
+        sheet.getRange(e.range.getRow(), gameColTags[targetTags.effect] + 1).clearContent();
       }
       return;
     }
@@ -299,7 +318,7 @@ function onEdit(e) {
       ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
       : data === magicItemMap.get(selectedValue)
         ? { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect }
-        : { name: targetTags.name };
+        : { name: targetTags.name, effect: targetTags.effect };
 
 
     const usageCol = gameColTags[finalTags.usage];

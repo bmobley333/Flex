@@ -61,7 +61,7 @@ function fCreateFlexMenu() {
     .addItem('Clear All Selections', 'fMenuClearMagicItemChoices');
 
   const filterSkillSetsMenu = ui.createMenu('🎓 Filter Skill Sets')
-    .addItem('Load All DB Skill Sets', 'fMenuSyncSkillSetChoices')
+    .addItem('Load All DB and Cust Skill Sets', 'fMenuSyncSkillSetChoices')
     .addItem('Filter Skill Sets From Selections 🎓', 'fMenuFilterSkillSets')
     .addSeparator()
     .addItem('Clear All Selections', 'fMenuClearSkillSetChoices');
@@ -105,9 +105,15 @@ function fCreateCustMenu() {
     .addSeparator()
     .addItem('🗑️ Delete Selected Items', 'fMenuDeleteSelectedMagicItems');
 
+  const skillSetsMenu = ui.createMenu('🎓 Skill Sets')
+    .addItem('✅ Verify & Publish Skill Sets', 'fMenuVerifyAndPublishSkillSets')
+    .addSeparator()
+    .addItem('🗑️ Delete Selected Skill Sets', 'fMenuDeleteSelectedSkillSets');
+
   ui.createMenu('💪 Flex')
     .addSubMenu(powersMenu)
     .addSubMenu(magicItemsMenu)
+    .addSubMenu(skillSetsMenu)
     .addToUi();
 } // End function fCreateCustMenu
 
