@@ -357,8 +357,8 @@ function fGetSkillSetSourceData(destColTags) {
       newRow[destColTags.tablename] = tableName;
       newRow[destColTags.source] = row[sourceColTags.source];
       newRow[destColTags.skillset] = skillSet;
-      newRow[destColTags.name] = skillSet; // --- THIS IS THE FIX ---
-      newRow[destColTags.skilllist] = skillList;
+      newRow[destColTags.name] = skillSet;
+      newRow[destColTags.effect] = skillList; // --- THIS IS THE FIX ---
 
       allSkillSetsData.push(newRow);
     }

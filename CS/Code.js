@@ -56,6 +56,123 @@ function fActivateMenus() {
   SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
 } // End function fActivateMenus
 
+/* function fProcessSkillSetChange
+   Purpose: Handles the addition or removal of skills on the <Game> sheet when a Skill Set is selected.
+   Assumptions: Called by the onEdit trigger.
+   Notes: This is the master controller for updating the character's skill lists.
+   @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object from onEdit.
+   @param {Map<string, object>} skillSetMap - The map of all available skill sets.
+   @param {object} gameColTags - The column tags for the <Game> sheet.
+   @returns {void}
+*/
+function fProcessSkillSetChange(e, skillSetMap, gameColTags) {
+  const sheet = e.range.getSheet();
+  const oldValue = e.oldValue;
+  const newValue = e.value;
+
+  // Case 1: A skill set was removed.
+  if (oldValue && skillSetMap.has(oldValue)) {
+    FlexLib.fShowToast('⏳ Removing old skill set...', 'Skill Sets');
+    const skillsToRemove = fGetSkillsFromString(skillSetMap.get(oldValue).effect);
+    fUpdateCharacterSkills(sheet, skillsToRemove, gameColTags, 'REMOVE');
+  }
+
+  // Case 2: A new skill set was added.
+  if (newValue && skillSetMap.has(newValue)) {
+    FlexLib.fShowToast('⏳ Adding new skill set...', 'Skill Sets');
+    const skillsToAdd = fGetSkillsFromString(skillSetMap.get(newValue).effect);
+    fUpdateCharacterSkills(sheet, skillsToAdd, gameColTags, 'ADD');
+  }
+
+  // --- THIS IS THE FIX ---
+  // If either an add or remove operation happened, show the completion toast.
+  if ((oldValue && skillSetMap.has(oldValue)) || (newValue && skillSetMap.has(newValue))) {
+    FlexLib.fEndToast();
+  }
+} // End function fProcessSkillSetChange
+
+/* function fGetSkillsFromString
+   Purpose: Parses a comma-separated string of skills into a clean array.
+   Assumptions: None.
+   Notes: A helper for fProcessSkillSetChange.
+   @param {string} skillString - The raw CSV string of skills.
+   @returns {string[]} An array of cleaned, individual skill strings.
+*/
+function fGetSkillsFromString(skillString) {
+  if (!skillString) return [];
+  return skillString
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s); // Remove empty strings
+} // End function fGetSkillsFromString
+
+/* function fUpdateCharacterSkills
+   Purpose: Adds or removes a list of skills from the appropriate sections on the <Game> sheet.
+   Assumptions: None.
+   Notes: A helper for fProcessSkillSetChange that contains the core placement and removal logic.
+   @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - The <Game> sheet object.
+   @param {string[]} skills - An array of skill strings to process.
+   @param {object} gameColTags - The column tags for the <Game> sheet.
+   @param {string} mode - The operation mode, either 'ADD' or 'REMOVE'.
+   @returns {void}
+*/
+function fUpdateCharacterSkills(sheet, skills, gameColTags, mode) {
+  const emojiMap = { '💪': 'mightskills', '🏃': 'motionskills', '👁️': 'mindskills', '✨': 'magicskills' };
+  const validEmojis = Object.keys(emojiMap);
+  const individualSkillsCol = gameColTags.individualskills + 1;
+
+  skills.forEach(skill => {
+    // --- THIS IS THE FIX ---
+    let detectedEmoji = null;
+    for (const emoji of validEmojis) {
+      if (skill.endsWith(emoji)) {
+        detectedEmoji = emoji;
+        break;
+      }
+    }
+
+    if (!detectedEmoji) {
+      FlexLib.fShowMessage('⚠️ Invalid Skill', `The skill "${skill}" has an invalid type and was skipped.`);
+      return;
+    }
+
+    const skillName = skill.substring(0, skill.length - detectedEmoji.length).trim();
+    const targetRowTag = emojiMap[detectedEmoji];
+    // --- END FIX ---
+
+    const { rowTags: gameRowTags } = FlexLib.fGetSheetData('CS', 'Game');
+    const baseRowIndex = gameRowTags[targetRowTag] + 1;
+
+    if (mode === 'ADD') {
+      const row1Range = sheet.getRange(baseRowIndex, individualSkillsCol);
+      const row2Range = sheet.getRange(baseRowIndex + 1, individualSkillsCol);
+      const row1Text = row1Range.getValue();
+      const row2Text = row2Range.getValue();
+
+      // Determine which row has the shorter string length to balance them
+      const targetRange = row1Text.length <= row2Text.length ? row1Range : row2Range;
+      const currentText = targetRange.getValue();
+      const newText = currentText ? `${currentText}, ${skillName}` : skillName;
+      targetRange.setValue(newText);
+    } else if (mode === 'REMOVE') {
+      // Check both rows to find and remove the skill
+      for (let i = 0; i < 2; i++) {
+        const range = sheet.getRange(baseRowIndex + i, individualSkillsCol);
+        let text = range.getValue();
+        // Use a regex to safely remove the skill, handling commas and spaces
+        const regex = new RegExp(`\\s*,?\\s*${skillName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*,?`, 'i');
+        if (regex.test(text)) {
+          text = text.replace(regex, '');
+          // Clean up leading/trailing commas that might be left over
+          if (text.startsWith(', ')) text = text.substring(2);
+          if (text.endsWith(',')) text = text.slice(0, -1);
+          range.setValue(text.trim());
+          break; // Exit after finding and removing the skill
+        }
+      }
+    }
+  });
+} // End function fUpdateCharacterSkills
 
 /* function onEdit
    Purpose: A simple trigger that auto-populates details from a high-speed session cache when an item is selected from a dropdown.
@@ -94,8 +211,7 @@ function onEdit(e) {
     const { arr: skillSetArr, colTags: skillSetColTags } = FlexLib.fGetSheetData('CS', 'SkillSetDataCache', e.source);
     const skillSetMap = new Map();
     skillSetArr.slice(1).forEach(row => {
-      // --- THIS IS THE FIX ---
-      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { name: row[skillSetColTags.name] });
+      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { name: row[skillSetColTags.name], effect: row[skillSetColTags.effect] });
     });
 
 
@@ -120,6 +236,7 @@ function onEdit(e) {
         break;
       case 'skillsetdropdown':
         targetTags = { name: 'skillsetname' };
+        fProcessSkillSetChange(e, skillSetMap, gameColTags); // --- THIS IS THE FIX ---
         break;
       // Add more cases here for DropDown3, DropDown4, etc. if they ever exist
       default:
