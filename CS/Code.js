@@ -78,7 +78,6 @@ function onEdit(e) {
     let data = null;
     let targetTags = {};
 
-    // --- THIS IS THE FIX ---
     // 1. Use the main, high-performance fGetSheetData cache instead of a manual one.
     const { arr: powerArr, colTags: powerColTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
     const powerMap = new Map();
@@ -92,12 +91,21 @@ function onEdit(e) {
       if (row[itemColTags.dropdown]) magicItemMap.set(row[itemColTags.dropdown], { usage: row[itemColTags.usage], action: row[itemColTags.action], name: row[itemColTags.name], effect: row[itemColTags.effect] });
     });
 
+    const { arr: skillSetArr, colTags: skillSetColTags } = FlexLib.fGetSheetData('CS', 'SkillSetDataCache', e.source);
+    const skillSetMap = new Map();
+    skillSetArr.slice(1).forEach(row => {
+      // --- THIS IS THE FIX ---
+      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { name: row[skillSetColTags.name] });
+    });
+
 
     // 2. Determine which data to use
     if (powerMap.has(selectedValue)) {
       data = powerMap.get(selectedValue);
     } else if (magicItemMap.has(selectedValue)) {
       data = magicItemMap.get(selectedValue);
+    } else if (skillSetMap.has(selectedValue)) {
+      data = skillSetMap.get(selectedValue);
     }
 
     // 3. EXPLICIT TAG MAPPING - No tricky logic
@@ -109,6 +117,9 @@ function onEdit(e) {
       case 'powerdropdown2':
       case 'magicitemdropdown2':
         targetTags = { usage: 'powerusage2', action: 'poweraction2', name: 'powername2', effect: 'powereffect2', m_usage: 'magicitemusage2', m_action: 'magicitemaction2', m_name: 'magicitemname2', m_effect: 'magicitemeffect2' };
+        break;
+      case 'skillsetdropdown':
+        targetTags = { name: 'skillsetname' };
         break;
       // Add more cases here for DropDown3, DropDown4, etc. if they ever exist
       default:
@@ -122,13 +133,20 @@ function onEdit(e) {
         const col = gameColTags[tag];
         if (col !== undefined) sheet.getRange(e.range.getRow(), col + 1).clearContent();
       });
+      // Also clear the skill set name cell
+      if (gameColTags[targetTags.name] !== undefined) {
+        sheet.getRange(e.range.getRow(), gameColTags[targetTags.name] + 1).clearContent();
+      }
       return;
     }
 
     // Determine the correct final set of tags based on the data that was found
     const finalTags = data === powerMap.get(selectedValue)
       ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
-      : { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect };
+      : data === magicItemMap.get(selectedValue)
+        ? { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect }
+        : { name: targetTags.name };
+
 
     const usageCol = gameColTags[finalTags.usage];
     const actionCol = gameColTags[finalTags.action];
@@ -306,3 +324,53 @@ function fMenuClearPowerChoices() {
 function fMenuClearMagicItemChoices() {
   FlexLib.run('ClearMagicItemFilters');
 } // End function fMenuClearMagicItemChoices
+
+/* function buttonFilterSkillSets
+   Purpose: Local trigger for a button, mimics the "Filter Skill Sets" menu item.
+   Assumptions: None.
+   Notes: Assign this function name to a button in the sheet to trigger the FilterSkillSets command.
+   @returns {void}
+*/
+function buttonFilterSkillSets() {
+  FlexLib.run('FilterSkillSets');
+} // End function buttonFilterSkillSets
+
+/* function buttonClearSkillSetChoices
+   Purpose: Local trigger for a button to clear all skill set filter checkboxes.
+   Assumptions: None.
+   Notes: Assign this function name to a button on the <Filter Skill Sets> sheet.
+   @returns {void}
+*/
+function buttonClearSkillSetChoices() {
+  FlexLib.run('ClearSkillSetFilters');
+} // End function buttonClearSkillSetChoices
+
+/* function fMenuSyncSkillSetChoices
+   Purpose: Local trigger for the "Sync Skill Set Choices" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuSyncSkillSetChoices() {
+  FlexLib.run('SyncSkillSetChoices');
+} // End function fMenuSyncSkillSetChoices
+
+/* function fMenuFilterSkillSets
+   Purpose: Local trigger for the "Filter Skill Sets" menu item.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuFilterSkillSets() {
+  FlexLib.run('FilterSkillSets');
+} // End function fMenuFilterSkillSets
+
+/* function fMenuClearSkillSetChoices
+   Purpose: Local trigger for the "Clear All Selections" menu item for skill sets.
+   Assumptions: None.
+   Notes: Acts as a pass-through to the central dispatcher in FlexLib.
+   @returns {void}
+*/
+function fMenuClearSkillSetChoices() {
+  FlexLib.run('ClearSkillSetFilters');
+} // End function fMenuClearSkillSetChoices

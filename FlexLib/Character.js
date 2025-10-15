@@ -47,14 +47,17 @@ function fCharacterOnboarding() {
   // 1. Sync all available lists
   fUpdatePowerTablesList(true); // Run silently
   fUpdateMagicItemChoices(true); // Run silently
+  fUpdateSkillSetChoices(true); // Run silently
 
   // 2. Set the default checkboxes for core DB sources
   fCheckCoreSources('Filter Powers');
   fCheckCoreSources('Filter Magic Items');
+  fCheckCoreSources('Filter Skill Sets');
 
   // 3. Run the initial filters to populate the dropdowns
   fFilterPowers(true); // Run silently
   fFilterMagicItems(true); // Run silently
+  fFilterSkillSets(true); // Run silently
 
   // 4. Set the final active sheet for the player
   fActivateSheetByName('Game');

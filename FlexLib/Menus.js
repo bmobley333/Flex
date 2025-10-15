@@ -60,9 +60,16 @@ function fCreateFlexMenu() {
     .addSeparator()
     .addItem('Clear All Selections', 'fMenuClearMagicItemChoices');
 
+  const filterSkillSetsMenu = ui.createMenu('🎓 Filter Skill Sets')
+    .addItem('Load All DB Skill Sets', 'fMenuSyncSkillSetChoices')
+    .addItem('Filter Skill Sets From Selections 🎓', 'fMenuFilterSkillSets')
+    .addSeparator()
+    .addItem('Clear All Selections', 'fMenuClearSkillSetChoices');
+
   ui.createMenu('💪 Flex')
     .addSubMenu(filterPowersMenu)
     .addSubMenu(filterMagicItemsMenu)
+    .addSubMenu(filterSkillSetsMenu)
     .addToUi();
 } // End function fCreateFlexMenu
 

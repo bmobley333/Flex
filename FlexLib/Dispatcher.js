@@ -31,6 +31,10 @@ function run(command, sheetToActivate) {
         fClearAllFilterCheckboxes('Filter Magic Items');
         fFilterMagicItems();
       },
+      ClearSkillSetFilters: () => {
+        fClearAllFilterCheckboxes('Filter Skill Sets');
+        fFilterSkillSets();
+      },
       InvalidateGameCache: () => fInvalidateSheetCache('CS', 'Game'),
       ShareCustomLists: fShareCustomLists,
       RenameCustomList: fRenameCustomList,
@@ -42,6 +46,7 @@ function run(command, sheetToActivate) {
       CreateCustomList: fCreateNewCustomList,
       SyncPowerChoices: () => fUpdatePowerTablesList(false),
       SyncMagicItemChoices: () => fUpdateMagicItemChoices(false),
+      SyncSkillSetChoices: () => fUpdateSkillSetChoices(false),
       AddNewCustomSource: fAddNewCustomSource,
       InitialSetup: fInitialSetup,
       TagVerification: fVerifyActiveSheetTags,
@@ -57,6 +62,7 @@ function run(command, sheetToActivate) {
       BuildMagicItems: fBuildMagicItems,
       FilterPowers: () => fFilterPowers(false),
       FilterMagicItems: () => fFilterMagicItems(false),
+      FilterSkillSets: () => fFilterSkillSets(false),
       PrepGameForPaper: fPrepGameForPaper,
       VerifyIndividualSkills: fVerifyIndividualSkills,
       VerifySkillSetLists: fVerifySkillSetLists,
