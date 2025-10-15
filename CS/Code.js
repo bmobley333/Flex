@@ -121,27 +121,26 @@ function fUpdateCharacterSkills(sheet, skills, gameColTags, mode) {
   const validEmojis = Object.keys(emojiMap);
   const individualSkillsCol = gameColTags.individualskills + 1;
 
-  skills.forEach(skill => {
-    // --- THIS IS THE FIX ---
+  skills.forEach(skillWithEmoji => {
     let detectedEmoji = null;
     for (const emoji of validEmojis) {
-      if (skill.endsWith(emoji)) {
+      if (skillWithEmoji.endsWith(emoji)) {
         detectedEmoji = emoji;
         break;
       }
     }
 
     if (!detectedEmoji) {
-      FlexLib.fShowMessage('⚠️ Invalid Skill', `The skill "${skill}" has an invalid type and was skipped.`);
+      FlexLib.fShowMessage('⚠️ Invalid Skill', `The skill "${skillWithEmoji}" has an invalid type and was skipped.`);
       return;
     }
 
-    const skillName = skill.substring(0, skill.length - detectedEmoji.length).trim();
     const targetRowTag = emojiMap[detectedEmoji];
-    // --- END FIX ---
-
     const { rowTags: gameRowTags } = FlexLib.fGetSheetData('CS', 'Game');
     const baseRowIndex = gameRowTags[targetRowTag] + 1;
+
+    // The full skill string (e.g., "Infrared👁️") is now the identifier.
+    const skillIdentifier = skillWithEmoji;
 
     if (mode === 'ADD') {
       const row1Range = sheet.getRange(baseRowIndex, individualSkillsCol);
@@ -149,25 +148,63 @@ function fUpdateCharacterSkills(sheet, skills, gameColTags, mode) {
       const row1Text = row1Range.getValue();
       const row2Text = row2Range.getValue();
 
-      // Determine which row has the shorter string length to balance them
-      const targetRange = row1Text.length <= row2Text.length ? row1Range : row2Range;
-      const currentText = targetRange.getValue();
-      const newText = currentText ? `${currentText}, ${skillName}` : skillName;
-      targetRange.setValue(newText);
+      // Find if the skill already exists in either row to increment its count.
+      let foundInRow = null;
+      let existingSkills = [];
+
+      // Check Row 1
+      existingSkills = row1Text ? row1Text.split(',').map(s => s.trim()) : [];
+      let skillIndex = existingSkills.findIndex(s => s.endsWith(skillIdentifier));
+      if (skillIndex !== -1) {
+        foundInRow = { range: row1Range, skills: existingSkills, index: skillIndex };
+      } else {
+        // Check Row 2
+        existingSkills = row2Text ? row2Text.split(',').map(s => s.trim()) : [];
+        skillIndex = existingSkills.findIndex(s => s.endsWith(skillIdentifier));
+        if (skillIndex !== -1) {
+          foundInRow = { range: row2Range, skills: existingSkills, index: skillIndex };
+        }
+      }
+
+      if (foundInRow) {
+        // --- Skill exists, increment the count ---
+        const existingSkill = foundInRow.skills[foundInRow.index];
+        const parts = existingSkill.split('_');
+        const count = parts.length > 1 ? parseInt(parts[0], 10) + 1 : 2;
+        foundInRow.skills[foundInRow.index] = `${count}_${skillIdentifier}`;
+        foundInRow.range.setValue(foundInRow.skills.join(', '));
+      } else {
+        // --- Skill is new, add it to the shorter row ---
+        const targetRange = row1Text.length <= row2Text.length ? row1Range : row2Range;
+        const currentText = targetRange.getValue();
+        const newText = currentText ? `${currentText}, ${skillIdentifier}` : skillIdentifier;
+        targetRange.setValue(newText);
+      }
     } else if (mode === 'REMOVE') {
-      // Check both rows to find and remove the skill
+      // --- Decrement or remove the skill ---
       for (let i = 0; i < 2; i++) {
         const range = sheet.getRange(baseRowIndex + i, individualSkillsCol);
-        let text = range.getValue();
-        // Use a regex to safely remove the skill, handling commas and spaces
-        const regex = new RegExp(`\\s*,?\\s*${skillName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*,?`, 'i');
-        if (regex.test(text)) {
-          text = text.replace(regex, '');
-          // Clean up leading/trailing commas that might be left over
-          if (text.startsWith(', ')) text = text.substring(2);
-          if (text.endsWith(',')) text = text.slice(0, -1);
-          range.setValue(text.trim());
-          break; // Exit after finding and removing the skill
+        const text = range.getValue();
+        if (!text) continue;
+
+        const existingSkills = text.split(',').map(s => s.trim());
+        const skillIndex = existingSkills.findIndex(s => s.endsWith(skillIdentifier));
+
+        if (skillIndex !== -1) {
+          const existingSkill = existingSkills[skillIndex];
+          const parts = existingSkill.split('_');
+          if (parts.length > 1) {
+            const count = parseInt(parts[0], 10) - 1;
+            if (count > 1) {
+              existingSkills[skillIndex] = `${count}_${skillIdentifier}`;
+            } else {
+              existingSkills[skillIndex] = skillIdentifier;
+            }
+          } else {
+            existingSkills.splice(skillIndex, 1);
+          }
+          range.setValue(existingSkills.join(', '));
+          break; // Exit after processing
         }
       }
     }
