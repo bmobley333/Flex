@@ -418,7 +418,6 @@ function fGetSelectedSkillSetTables() {
 function fFetchAllSkillSetData(selectedTables) {
   fShowToast('Fetching all selected skill sets...', 'Filter Skill Sets');
   let allSkillSetsData = [];
-  let dbHeader = [];
   const codexSS = fGetCodexSpreadsheet();
 
   const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
@@ -429,7 +428,19 @@ function fFetchAllSkillSetData(selectedTables) {
   }
   const dbSS = SpreadsheetApp.open(dbFile);
   const { arr: allDbSkillSets, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'SkillSets', dbSS);
-  dbHeader = allDbSkillSets[dbRowTags.header];
+  const dbHeader = allDbSkillSets[dbRowTags.header];
+
+  // --- THIS IS THE FIX ---
+  // Programmatically correct the header to enforce architectural consistency.
+  // This ensures the cache is built correctly even if the DB template is outdated.
+  if (dbColTags.effect === undefined) {
+    if (dbColTags.skilllist !== undefined) dbHeader[dbColTags.skilllist] = 'Effect';
+    else if (dbColTags.skills !== undefined) dbHeader[dbColTags.skills] = 'Effect';
+  }
+  if (dbColTags.name === undefined && dbColTags.skillset !== undefined) {
+    dbHeader[dbColTags.skillset] = 'Name';
+  }
+  // --- END FIX ---
 
   const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
   if (selectedDbTables.length > 0) {
@@ -451,7 +462,6 @@ function fFetchAllSkillSetData(selectedTables) {
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
           const { arr: customSheetSets, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedSkillSets', customSS);
-          if (dbHeader.length === 0) dbHeader = customSheetSets[custRowTags.header];
 
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomSets = customSheetSets

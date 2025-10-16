@@ -246,29 +246,47 @@ function onEdit(e) {
 
     const selectedValue = e.value;
     let data = null;
-    let targetTags = {};
 
-    // 1. Use the main, high-performance fGetSheetData cache instead of a manual one.
+    // 1. Build high-speed maps from the data caches
     const { arr: powerArr, colTags: powerColTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
     const powerMap = new Map();
     powerArr.slice(1).forEach(row => {
-      if (row[powerColTags.dropdown]) powerMap.set(row[powerColTags.dropdown], { usage: row[powerColTags.usage], action: row[powerColTags.action], name: row[powerColTags.power], effect: row[powerColTags.effect] });
+      const dropdownText = row[powerColTags.dropdown];
+      if (dropdownText) {
+        powerMap.set(dropdownText, {
+          usage: row[powerColTags.usage],
+          action: row[powerColTags.action],
+          name: row[powerColTags.abilityname], // <-- FIX HERE
+          effect: row[powerColTags.effect],
+        });
+      }
     });
 
     const { arr: itemArr, colTags: itemColTags } = FlexLib.fGetSheetData('CS', 'MagicItemDataCache', e.source);
     const magicItemMap = new Map();
     itemArr.slice(1).forEach(row => {
-      if (row[itemColTags.dropdown]) magicItemMap.set(row[itemColTags.dropdown], { usage: row[itemColTags.usage], action: row[itemColTags.action], name: row[itemColTags.name], effect: row[itemColTags.effect] });
+      const dropdownText = row[itemColTags.dropdown];
+      if (dropdownText) {
+        magicItemMap.set(dropdownText, {
+          usage: row[itemColTags.usage],
+          action: row[itemColTags.action],
+          name: row[itemColTags.abilityname], // <-- FIX HERE
+          effect: row[itemColTags.effect],
+        });
+      }
     });
 
     const { arr: skillSetArr, colTags: skillSetColTags } = FlexLib.fGetSheetData('CS', 'SkillSetDataCache', e.source);
     const skillSetMap = new Map();
     skillSetArr.slice(1).forEach(row => {
-      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { name: row[skillSetColTags.name], effect: row[skillSetColTags.effect] });
+      const dropdownText = row[skillSetColTags.dropdown];
+      if (dropdownText) {
+        skillSetMap.set(dropdownText, { name: row[skillSetColTags.name], effect: row[skillSetColTags.effect] });
+      }
     });
 
 
-    // 2. Determine which data to use
+    // 2. Determine which data to use based on the selected dropdown value
     if (powerMap.has(selectedValue)) {
       data = powerMap.get(selectedValue);
     } else if (magicItemMap.has(selectedValue)) {
@@ -277,64 +295,69 @@ function onEdit(e) {
       data = skillSetMap.get(selectedValue);
     }
 
-    // 3. EXPLICIT TAG MAPPING - No tricky logic
+    // 3. EXPLICIT TAG MAPPING & ACTION
     switch (editedColTag) {
       case 'powerdropdown1':
       case 'magicitemdropdown1':
-        targetTags = { usage: 'powerusage1', action: 'poweraction1', name: 'powername1', effect: 'powereffect1', m_usage: 'magicitemusage1', m_action: 'magicitemaction1', m_name: 'magicitemname1', m_effect: 'magicitemeffect1' };
-        break;
       case 'powerdropdown2':
-      case 'magicitemdropdown2':
-        targetTags = { usage: 'powerusage2', action: 'poweraction2', name: 'powername2', effect: 'powereffect2', m_usage: 'magicitemusage2', m_action: 'magicitemaction2', m_name: 'magicitemname2', m_effect: 'magicitemeffect2' };
+      case 'magicitemdropdown2': {
+        const isPower = powerMap.has(selectedValue);
+        const isDropdown1 = editedColTag.endsWith('1');
+
+        const pUsage = isDropdown1 ? 'powerusage1' : 'powerusage2';
+        const pAction = isDropdown1 ? 'poweraction1' : 'poweraction2';
+        const pName = isDropdown1 ? 'powername1' : 'powername2';
+        const pEffect = isDropdown1 ? 'powereffect1' : 'powereffect2';
+
+        const mUsage = isDropdown1 ? 'magicitemusage1' : 'magicitemusage2';
+        const mAction = isDropdown1 ? 'magicitemaction1' : 'magicitemaction2';
+        const mName = isDropdown1 ? 'magicitemname1' : 'magicitemname2';
+        const mEffect = isDropdown1 ? 'magicitemeffect1' : 'magicitemeffect2';
+
+        [pUsage, pAction, pName, pEffect, mUsage, mAction, mName, mEffect].forEach(tag => {
+          const col = gameColTags[tag];
+          if (col !== undefined) sheet.getRange(e.range.getRow(), col + 1).clearContent();
+        });
+
+        if (data) {
+          const usageCol = gameColTags[isPower ? pUsage : mUsage];
+          const actionCol = gameColTags[isPower ? pAction : mAction];
+          const nameCol = gameColTags[isPower ? pName : mName];
+          const effectCol = gameColTags[isPower ? pEffect : mEffect];
+
+          if (usageCol !== undefined) sheet.getRange(e.range.getRow(), usageCol + 1).setValue(data.usage);
+          if (actionCol !== undefined) sheet.getRange(e.range.getRow(), actionCol + 1).setValue(data.action);
+          if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
+          if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
+        }
         break;
-      case 'skillsetdropdown':
-        targetTags = { name: 'skillsetname', effect: 'skillseteffect' };
-        fProcessSkillSetChange(e, gameColTags); // Pass gameColTags, map is no longer needed for deletion
+      }
+
+      case 'skillsetdropdown': {
+        const nameCol = gameColTags.skillsetname;
+        const effectCol = gameColTags.skillseteffect;
+
+        if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).clearContent();
+        if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).clearContent();
+
+        if (data) {
+          if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
+          if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
+        }
+
+        fProcessSkillSetChange(e, gameColTags, skillSetMap);
         break;
-      // Add more cases here for DropDown3, DropDown4, etc. if they ever exist
+      }
+
       default:
-        return; // Not a dropdown we care about
+        return;
     }
-
-    // 4. Clear or populate cells
-    const allPossibleTags = [targetTags.usage, targetTags.action, targetTags.name, targetTags.effect, targetTags.m_usage, targetTags.m_action, targetTags.m_name, targetTags.m_effect];
-    if (!selectedValue || !data) {
-      allPossibleTags.forEach(tag => {
-        const col = gameColTags[tag];
-        if (col !== undefined) sheet.getRange(e.range.getRow(), col + 1).clearContent();
-      });
-      // Also clear the skill set name and effect cells
-      if (gameColTags[targetTags.name] !== undefined) {
-        sheet.getRange(e.range.getRow(), gameColTags[targetTags.name] + 1).clearContent();
-      }
-      if (gameColTags[targetTags.effect] !== undefined) {
-        sheet.getRange(e.range.getRow(), gameColTags[targetTags.effect] + 1).clearContent();
-      }
-      return;
-    }
-
-    // Determine the correct final set of tags based on the data that was found
-    const finalTags = data === powerMap.get(selectedValue)
-      ? { usage: targetTags.usage, action: targetTags.action, name: targetTags.name, effect: targetTags.effect }
-      : data === magicItemMap.get(selectedValue)
-        ? { usage: targetTags.m_usage, action: targetTags.m_action, name: targetTags.m_name, effect: targetTags.m_effect }
-        : { name: targetTags.name, effect: targetTags.effect };
-
-
-    const usageCol = gameColTags[finalTags.usage];
-    const actionCol = gameColTags[finalTags.action];
-    const nameCol = gameColTags[finalTags.name];
-    const effectCol = gameColTags[finalTags.effect];
-
-    if (usageCol !== undefined) sheet.getRange(e.range.getRow(), usageCol + 1).setValue(data.usage);
-    if (actionCol !== undefined) sheet.getRange(e.range.getRow(), actionCol + 1).setValue(data.action);
-    if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
-    if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
-
   } catch (err) {
     console.error(`❌ CRITICAL ERROR in onEdit: ${err.message}\n${err.stack}`);
   }
 } // End function onEdit
+
+
 
 /* function buttonFilterPowers
    Purpose: Local trigger for a button, mimics the "Filter Powers" menu item.
