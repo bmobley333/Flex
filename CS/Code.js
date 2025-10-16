@@ -56,56 +56,7 @@ function fActivateMenus() {
   SpreadsheetApp.getUi().alert(title, message, SpreadsheetApp.getUi().ButtonSet.OK);
 } // End function fActivateMenus
 
-/* function fProcessSkillSetChange
-   Purpose: Handles the addition or removal of skills on the <Game> sheet when a Skill Set is selected.
-   Assumptions: Called by the onEdit trigger.
-   Notes: This is the master controller for updating the character's skill lists.
-   @param {GoogleAppsScript.Events.SheetsOnEdit} e - The event object from onEdit.
-   @param {object} gameColTags - The column tags for the <Game> sheet.
-   @returns {void}
-*/
-function fProcessSkillSetChange(e, gameColTags) {
-  const sheet = e.range.getSheet();
-  const oldValue = e.oldValue;
-  const newValue = e.value;
-  const editedRow = e.range.getRow();
 
-  // Case 1: A skill set was removed.
-  // The oldValue exists, but the newValue (e.value) is blank.
-  if (oldValue && !newValue) {
-    FlexLib.fShowToast('⏳ Removing old skill set...', 'Skill Sets');
-    // --- THIS IS THE FIX ---
-    // Read the skill list directly from the adjacent SkillSetEffect cell for resilience.
-    const effectCol = gameColTags.skillseteffect;
-    if (effectCol !== undefined) {
-      const effectString = sheet.getRange(editedRow, effectCol + 1).getValue();
-      const skillsToRemove = fGetSkillsFromString(effectString);
-      fUpdateCharacterSkills(sheet, skillsToRemove, gameColTags, 'REMOVE');
-    }
-    // --- END FIX ---
-  }
-
-  // Case 2: A new skill set was added.
-  // The newValue (e.value) exists.
-  if (newValue) {
-    FlexLib.fShowToast('⏳ Adding new skill set...', 'Skill Sets');
-    const { arr: skillSetArr, colTags: skillSetColTags } = FlexLib.fGetSheetData('CS', 'SkillSetDataCache', e.source);
-    const skillSetMap = new Map();
-    skillSetArr.slice(1).forEach(row => {
-      if (row[skillSetColTags.dropdown]) skillSetMap.set(row[skillSetColTags.dropdown], { effect: row[skillSetColTags.effect] });
-    });
-
-    if (skillSetMap.has(newValue)) {
-      const skillsToAdd = fGetSkillsFromString(skillSetMap.get(newValue).effect);
-      fUpdateCharacterSkills(sheet, skillsToAdd, gameColTags, 'ADD');
-    }
-  }
-
-  // Show the completion toast if an operation happened.
-  if (oldValue || newValue) {
-    FlexLib.fEndToast();
-  }
-} // End function fProcessSkillSetChange
 
 /* function fGetSkillsFromString
    Purpose: Parses a comma-separated string of skills into a clean array.
@@ -244,9 +195,6 @@ function onEdit(e) {
 
     if (!editedColTag) return;
 
-    const selectedValue = e.value;
-    let data = null;
-
     // 1. Build high-speed maps from the data caches
     const { arr: powerArr, colTags: powerColTags } = FlexLib.fGetSheetData('CS', 'PowerDataCache', e.source);
     const powerMap = new Map();
@@ -256,7 +204,7 @@ function onEdit(e) {
         powerMap.set(dropdownText, {
           usage: row[powerColTags.usage],
           action: row[powerColTags.action],
-          name: row[powerColTags.abilityname], // <-- FIX HERE
+          name: row[powerColTags.abilityname],
           effect: row[powerColTags.effect],
         });
       }
@@ -270,7 +218,7 @@ function onEdit(e) {
         magicItemMap.set(dropdownText, {
           usage: row[itemColTags.usage],
           action: row[itemColTags.action],
-          name: row[itemColTags.abilityname], // <-- FIX HERE
+          name: row[itemColTags.abilityname],
           effect: row[itemColTags.effect],
         });
       }
@@ -285,22 +233,14 @@ function onEdit(e) {
       }
     });
 
-
-    // 2. Determine which data to use based on the selected dropdown value
-    if (powerMap.has(selectedValue)) {
-      data = powerMap.get(selectedValue);
-    } else if (magicItemMap.has(selectedValue)) {
-      data = magicItemMap.get(selectedValue);
-    } else if (skillSetMap.has(selectedValue)) {
-      data = skillSetMap.get(selectedValue);
-    }
-
-    // 3. EXPLICIT TAG MAPPING & ACTION
+    // 2. EXPLICIT TAG MAPPING & ACTION
     switch (editedColTag) {
       case 'powerdropdown1':
       case 'magicitemdropdown1':
       case 'powerdropdown2':
       case 'magicitemdropdown2': {
+        const selectedValue = e.value;
+        const data = powerMap.has(selectedValue) ? powerMap.get(selectedValue) : magicItemMap.get(selectedValue);
         const isPower = powerMap.has(selectedValue);
         const isDropdown1 = editedColTag.endsWith('1');
 
@@ -336,16 +276,37 @@ function onEdit(e) {
       case 'skillsetdropdown': {
         const nameCol = gameColTags.skillsetname;
         const effectCol = gameColTags.skillseteffect;
+        const editedRow = e.range.getRow();
 
-        if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).clearContent();
-        if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).clearContent();
-
-        if (data) {
-          if (nameCol !== undefined) sheet.getRange(e.range.getRow(), nameCol + 1).setValue(data.name);
-          if (effectCol !== undefined) sheet.getRange(e.range.getRow(), effectCol + 1).setValue(data.effect);
+        // --- REMOVAL LOGIC ---
+        // Must run first, using the skill list currently on the sheet before it gets cleared.
+        if (e.oldValue) {
+          const effectString = sheet.getRange(editedRow, effectCol + 1).getValue();
+          const skillsToRemove = fGetSkillsFromString(effectString);
+          if (skillsToRemove.length > 0) {
+            FlexLib.fShowToast('⏳ Removing old skill set...', 'Skill Sets');
+            fUpdateCharacterSkills(sheet, skillsToRemove, gameColTags, 'REMOVE');
+          }
         }
 
-        fProcessSkillSetChange(e, gameColTags, skillSetMap);
+        // --- CLEARING / ADDITION LOGIC ---
+        if (!e.value) { // Cell was cleared
+          if (nameCol !== undefined) sheet.getRange(editedRow, nameCol + 1).clearContent();
+          if (effectCol !== undefined) sheet.getRange(editedRow, effectCol + 1).clearContent();
+        } else { // New value was added
+          const data = skillSetMap.get(e.value);
+          if (data) {
+            if (nameCol !== undefined) sheet.getRange(editedRow, nameCol + 1).setValue(data.name);
+            if (effectCol !== undefined) sheet.getRange(editedRow, effectCol + 1).setValue(data.effect);
+            const skillsToAdd = fGetSkillsFromString(data.effect);
+            if (skillsToAdd.length > 0) {
+              FlexLib.fShowToast('⏳ Adding new skill set...', 'Skill Sets');
+              fUpdateCharacterSkills(sheet, skillsToAdd, gameColTags, 'ADD');
+            }
+          }
+        }
+        
+        if (e.oldValue || e.value) FlexLib.fEndToast();
         break;
       }
 
