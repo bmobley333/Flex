@@ -158,11 +158,25 @@ function fClearAndWriteData(destSheet, dataToWrite, destColTags) {
 } // End function fClearAndWriteData
 
 
-
+/* function fColumnToNumber
+   Purpose: Converts a column letter string (A, B, AA, AB) to its 1-based column number.
+   Assumptions: None.
+   Notes: A helper for fParseA1Notation.
+   @param {string} colString - The column letter string.
+   @returns {number} The 1-based column number.
+*/
+function fColumnToNumber(colString) {
+  let num = 0;
+  const upperColString = colString.toUpperCase();
+  for (let i = 0; i < upperColString.length; i++) {
+    num = num * 26 + (upperColString.charCodeAt(i) - 64);
+  }
+  return num;
+} // End function fColumnToNumber
 
 /* function fParseA1Notation
    Purpose: Parses a custom A1 notation string into an object of rows and columns.
-   Assumptions: The input string format is "A,1,3-4,D-F".
+   Assumptions: The input string format is "A,1,3-4,D-F,BI-BK".
    Notes: This is the core parser for the Show/Hide All feature.
    @param {string} notationString - The string to parse.
    @returns {{rows: number[], cols: number[]}} An object containing arrays of row and column numbers.
@@ -174,6 +188,7 @@ function fParseA1Notation(notationString) {
   const parts = notationString.split(',');
 
   parts.forEach(part => {
+    part = part.trim();
     // Handle row ranges (e.g., "3-5")
     if (part.includes('-') && !isNaN(part.split('-')[0])) {
       const [start, end] = part.split('-').map(Number);
@@ -185,16 +200,16 @@ function fParseA1Notation(notationString) {
     else if (!isNaN(part)) {
       output.rows.push(Number(part));
     }
-    // Handle column ranges (e.g., "D-F")
+    // Handle column ranges (e.g., "D-F" or "AZ-BC")
     else if (part.includes('-')) {
-      const [start, end] = part.split('-').map(p => p.toUpperCase().charCodeAt(0));
+      const [start, end] = part.split('-').map(fColumnToNumber);
       for (let i = start; i <= end; i++) {
-        output.cols.push(i - 64);
+        output.cols.push(i);
       }
     }
-    // Handle single columns
+    // Handle single columns (e.g., "A" or "BI")
     else {
-      output.cols.push(part.toUpperCase().charCodeAt(0) - 64);
+      output.cols.push(fColumnToNumber(part));
     }
   });
 
