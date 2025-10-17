@@ -34,7 +34,7 @@ function fCreateCodexMenu() {
     .addItem('Add Sheet From ID', 'fMenuAddNewCustomSource');
 
   // --- Main Flex Menu ---
-  ui.createMenu('💪 Flex')
+  ui.createMenu('💪 MS3')
     .addSubMenu(charactersMenu)
     .addSubMenu(customAbilitiesMenu)
     .addToUi();
@@ -66,7 +66,7 @@ function fCreateFlexMenu() {
     .addSeparator()
     .addItem('Clear All Selections', 'fMenuClearSkillSetChoices');
 
-  ui.createMenu('💪 Flex')
+  ui.createMenu('💪 MS3')
     .addSubMenu(filterPowersMenu)
     .addSubMenu(filterMagicItemsMenu)
     .addSubMenu(filterSkillSetsMenu)
@@ -110,7 +110,7 @@ function fCreateCustMenu() {
     .addSeparator()
     .addItem('🗑️ Delete Selected Skill Sets', 'fMenuDeleteSelectedSkillSets');
 
-  ui.createMenu('💪 Flex')
+  ui.createMenu('💪 MS3')
     .addSubMenu(powersMenu)
     .addSubMenu(magicItemsMenu)
     .addSubMenu(skillSetsMenu)

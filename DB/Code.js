@@ -16,7 +16,7 @@ function onOpen() {
     FlexLib.fCreateDesignerMenu('DB');
   } else {
     SpreadsheetApp.getUi()
-      .createMenu('💪 Flex')
+      .createMenu('💪 MS3')
       .addItem('▶️ Activate Flex Menus', 'fActivateMenus')
       .addToUi();
   }

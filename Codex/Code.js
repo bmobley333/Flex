@@ -23,7 +23,7 @@ function onOpen() {
   } else {
     // If not initialized, show a simple menu to activate the script.
     SpreadsheetApp.getUi()
-      .createMenu('💪 Flex')
+      .createMenu('💪 MS3')
       .addItem('▶️ Activate Flex Menus', 'fActivateCodex')
       .addToUi();
   }
