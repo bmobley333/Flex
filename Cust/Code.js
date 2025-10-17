@@ -31,7 +31,7 @@ function onOpen() {
   } else {
     SpreadsheetApp.getUi()
       .createMenu('💪 MS3')
-      .addItem('▶️ Activate Flex Menus', 'fActivateMenus')
+      .addItem('▶️ Activate 💪MS3 Menus', 'fActivateMenus')
       .addToUi();
   }
 } // End function onOpen

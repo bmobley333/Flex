@@ -24,7 +24,7 @@ function onOpen() {
     // If not initialized, show a simple menu to activate the script.
     SpreadsheetApp.getUi()
       .createMenu('💪 MS3')
-      .addItem('▶️ Activate Flex Menus', 'fActivateCodex')
+      .addItem('▶️ Activate 💪MS3 Menus', 'fActivateCodex')
       .addToUi();
   }
 } // End function onOpen
