@@ -400,7 +400,11 @@ function fFetchAllPowerData(selectedTables) {
   }
   const dbSS = SpreadsheetApp.open(dbFile);
   const { arr: allDbPowers, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Powers', dbSS);
-  dbHeader = allDbPowers[dbRowTags.header];
+  
+  // --- THIS IS THE FIX ---
+  // The header for the cache file MUST be based on the colTag row (row 0), not the human-readable "Header" row.
+  dbHeader = allDbPowers[0];
+  // --- END FIX ---
 
   // Fetch from the local DB if selected
   const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
@@ -423,7 +427,7 @@ function fFetchAllPowerData(selectedTables) {
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
           const { arr: customSheetPowers, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedPowers', customSS);
-          if (dbHeader.length === 0) dbHeader = customSheetPowers[custRowTags.header];
+          if (dbHeader.length === 0) dbHeader = customSheetPowers[0]; // Also use row 0 for custom headers
 
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomPowers = customSheetPowers

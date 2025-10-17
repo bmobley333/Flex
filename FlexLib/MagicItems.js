@@ -614,8 +614,11 @@ function fFilterMagicItems(isSilent = false) {
   const dbFile = fGetVerifiedLocalFile(g.CURRENT_VERSION, 'DB');
   const dbSS = SpreadsheetApp.open(dbFile);
   const { arr: allDbItems, rowTags: dbRowTags, colTags: dbColTags } = fGetSheetData('DB', 'Magic Items', dbSS);
-  cacheHeader = allDbItems[dbRowTags.header];
-
+  
+  // --- THIS IS THE FIX ---
+  // The header for the cache file MUST be based on the colTag row (row 0), not the human-readable "Header" row.
+  cacheHeader = allDbItems[0];
+  // --- END FIX ---
 
   const selectedDbTables = selectedTables.filter(t => t.source === 'DB').map(t => t.tableName);
   if (selectedDbTables.length > 0) {
@@ -635,7 +638,7 @@ function fFilterMagicItems(isSilent = false) {
         try {
           const customSS = SpreadsheetApp.openById(sourceId);
           const { arr: customSheetItems, rowTags: custRowTags, colTags: custColTags } = fGetSheetData(`Cust_${sourceId}`, 'VerifiedMagicItems', customSS);
-          if (cacheHeader.length === 0) cacheHeader = customSheetItems[custRowTags.header];
+          if (cacheHeader.length === 0) cacheHeader = customSheetItems[0]; // Also use row 0 for custom headers
 
           const cleanTableName = customTable.tableName.replace('Cust - ', '');
           const filteredCustomItems = customSheetItems
